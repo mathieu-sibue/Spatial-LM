@@ -3,7 +3,7 @@
 from LMs.LayoutLM import LayoutLMTokenclassifier
 from LMs.LayoutLM import LayoutLM4DocVQA
 from LMs.Roberta import GraphRobertaTokenClassifier, RobertaTokenClassifier
-from LMs.CSModel import CSTokenClassifier,CSMaskedLM, KeyValLinking
+from LMs.SpatialLM import SpatialLMForMaskedLM
 
 def setup(opt):
     print('network:' + opt.network_type)
@@ -18,15 +18,8 @@ def setup(opt):
         model = GraphRobertaTokenClassifier(opt)
     elif opt.network_type == 'roberta':
         model = RobertaTokenClassifier(opt)
-    elif opt.network_type == 'csmodel':
-        if opt.task_type == 'cspretrain':
-            print('model: load masked-csmodel for mlm')
-            model = CSMaskedLM(opt)
-        elif opt.task_type == 'token-classifier':
-            print('model: load csmodel for token classification')
-            model = CSTokenClassifier(opt)
-        elif opt.task_type == 'link-binary':
-            model = KeyValLinking(opt)
+    elif opt.network_type == 'spatial_lm':
+        model = SpatialLMForMaskedLM(opt)
     else:
         raise Exception('model not supported:{}'.format(opt.network_type))
 

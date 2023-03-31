@@ -9,12 +9,12 @@ import torch
 import pickle
 from utils.params import Params
 # from torch_geometric.transforms import NormalizeFeatures
-import pretrain_dataset
+# import pretrain_dataset
 from LMs import trainer
 import LMs
 
 def parse_args(config_path):
-    parser = argparse.ArgumentParser(description='run the model')
+    parser = argparse.ArgumentParser(description='pretrain the model')
     parser.add_argument('--config', dest='config_file', default = config_path)
     return parser.parse_args()
     
@@ -37,7 +37,7 @@ if __name__=='__main__':
     model = LMs.setup(params).to(params.device)
 
     # section 4, saving path for output model
-    params.dir_path = trainer.create_save_dir(params)    # prepare dir for saving best models, put config info first
+    # params.dir_path = trainer.create_save_dir(params)    # prepare dir for saving best models, put config info first
 
     # section 4, load data; prepare output_dim/num_labels, id2label, label2id for section3; 
     # 4.1 traditional train
@@ -46,11 +46,11 @@ if __name__=='__main__':
     # best_f1 = trainer.train(params, model, mydata)
 
     # 4.2 train many datasets
-    for i in range(3, 8):
-        params.rvl_cdip = '/home/ubuntu/air/vrdu/datasets/rvl_pretrain_datasets/'+str(i)+'_fixed_bert.hf'
-        mydata = pretrain_dataset.setup(params)
-        best_f1 = trainer.pretrain(params, model, mydata)
-        del mydata
+    # for i in range(3, 8):
+    #     params.rvl_cdip = '/home/ubuntu/air/vrdu/datasets/rvl_pretrain_datasets/'+str(i)+'_fixed_bert.hf'
+    #     mydata = pretrain_dataset.setup(params)
+    #     best_f1 = trainer.pretrain(params, model, mydata)
+    #     del mydata
 
 
     # section 5, inference only (on test_dataset)

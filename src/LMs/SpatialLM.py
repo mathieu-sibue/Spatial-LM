@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers.modeling_outputs import MaskedLMOutput
 from typing import List, Optional, Tuple, Union
-from transformers import AutoConfig, AutoModel
+from transformers import AutoConfig, AutoModel, LayoutLMv3Model
 
 
 class SpatialLMHead(nn.Module):
