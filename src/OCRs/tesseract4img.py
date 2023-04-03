@@ -103,10 +103,12 @@ def image_to_dict(img_paths, tbox_norm=False):
                 one_page_info['tboxes'].append([x0, y0, x1, y1])
             one_page_info['block_ids'].append(block_num)
 
+        # if the page is empty skip
+        if not one_page_info['tokens']: continue
         # extend with bboxes, i.e., the shared box
         one_page_info = img_util._extend_shared_bbox(one_page_info)
-
-        return one_page_info
+        
+        yield one_page_info
 
 
 def get_img2doc_data(img_dir):
