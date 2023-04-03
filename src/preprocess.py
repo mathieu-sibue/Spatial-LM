@@ -67,10 +67,10 @@ def generate_and_save(set_id, imgs):
 if __name__ == "__main__":
     files = get_file_list()
 
-    random.Random(5).shuffle(files)
+    random.Random(88).shuffle(files)
 
     subsets = list(split(files, 50))
-    dataset = tesseract4img.imgs_to_dataset_generator(subset[0])
+    dataset = tesseract4img.imgs_to_dataset_generator(subsets[0])
     print(dataset)
 
     #

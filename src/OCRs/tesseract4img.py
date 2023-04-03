@@ -5,7 +5,7 @@ import os
 import json
 from datasets import Dataset, load_from_disk
 import numpy as np
-import img_util
+from OCRs import img_util
 # import tok_util
 from datasets import Dataset, Features, Sequence, Value, Array2D, Array3D
 
