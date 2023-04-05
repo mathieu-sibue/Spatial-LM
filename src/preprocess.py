@@ -108,7 +108,7 @@ if __name__ == "__main__":
     subsets = list(split(files, 10))
     print('dataset num: ',len(subsets))
     # for i,subset in enumerate(subsets):
-    for i in range(1,len(subsets)):
+    for i in range(0,1):
         subset = subsets[i]
         print('dataset ',i,', sample size:',len(subset))
         mydataset = tesseract4img.imgs_to_dataset_generator(subset)

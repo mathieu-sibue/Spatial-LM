@@ -3,6 +3,8 @@ import torch.nn as nn
 from transformers.modeling_outputs import MaskedLMOutput
 from typing import List, Optional, Tuple, Union
 from transformers import AutoConfig, AutoModel, LayoutLMv3Model
+from transformers.activations import gelu  # ACT2FN
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 
 class SpatialLMHead(nn.Module):
@@ -56,7 +58,7 @@ class SpatialLMForMaskedLM(nn.Module):
         labels: Optional[torch.LongTensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = True,
         pixel_values: Optional[torch.LongTensor] = None,
     ) -> Union[Tuple[torch.Tensor], MaskedLMOutput]:
 
@@ -77,6 +79,7 @@ class SpatialLMForMaskedLM(nn.Module):
         # get [B, S, D] (not pooled), and predict complete sequence
         # sequence_output = outputs[0]
         # We need to remove the vision part
+        input_shape = input_ids.size()
         seq_length = input_shape[1]
         # only take the text part of the output representations, i.e., [B, S-text, D]
         sequence_output = outputs[0][:, :seq_length]

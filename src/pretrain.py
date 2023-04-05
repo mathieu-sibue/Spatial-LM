@@ -10,8 +10,10 @@ import pickle
 from utils.params import Params
 # from torch_geometric.transforms import NormalizeFeatures
 # import pretrain_dataset
-from LMs import trainer
+from LMs import trainer, HFTrainer
 import LMs
+import mydataset
+
 
 def parse_args(config_path):
     parser = argparse.ArgumentParser(description='pretrain the model')
@@ -34,16 +36,17 @@ if __name__=='__main__':
 
     # section 3, model, loss function, and optimizer
     # load from cs model checkpoint
-    model = LMs.setup(params).to(params.device)
+    # model = LMs.setup(params).to(params.device)
+    model = LMs.setup(params)
 
     # section 4, saving path for output model
     # params.dir_path = trainer.create_save_dir(params)    # prepare dir for saving best models, put config info first
-
+    params.output_dir = '/home/ubuntu/air/vrdu/output/pretrain_rvl'
     # section 4, load data; prepare output_dim/num_labels, id2label, label2id for section3; 
     # 4.1 traditional train
-    # mydata = pretrain_dataset.setup(params)
-    # print(mydata.masked_train_dataset)
-    # best_f1 = trainer.train(params, model, mydata)
+    mydata = mydataset.setup(params)
+    
+    HFTrainer.pretrain(params, model, mydata)
 
     # 4.2 train many datasets
     # for i in range(3, 8):

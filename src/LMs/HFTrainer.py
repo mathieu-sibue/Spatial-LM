@@ -7,48 +7,39 @@ from sklearn.metrics import accuracy_score, f1_score,roc_auc_score,classificatio
 from transformers import TrainingArguments, Trainer
 from transformers.data.data_collator import default_data_collator
 import numpy as np
+from transformers import DataCollatorForLanguageModeling
 
 
-# class WeightedLossTrainer(Trainer):
-#     def compute_loss(self,model,inputs,return_outputs=False):
-#         outputs = model(**inputs)
-#         logits = outputs.get("logits")
-#         labels = inputs.get("labels")
-#         loss_func = nn.CrossEntropyLoss(weight=class_weights)
-#         loss = loss_func(logits,labels)
-#         return (loss,outputs) if return_outputs else loss
-    
-# the model itself is (by default) responsible for computing some sort of loss and returning it in outputs.
-def train(opt, model, mydata):
-    logging_steps = len(mydata.train_dataset)//opt.batch_size
+def pretrain(opt, model, mydata):
+    data_collator = DataCollatorForLanguageModeling(tokenizer=mydata.tokenizer, mlm_probability=0.15)
+
+    # logging_steps = len(mydata.train_dataset)  //opt.batch_size
+    trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=0.05)
 
     training_args = TrainingArguments(
-        output_dir = opt.output_dir,
+        output_dir = opt.output_dir+'/test_base',
         num_train_epochs = opt.epochs,
         learning_rate = opt.lr,
         per_device_train_batch_size = opt.batch_size,
         per_device_eval_batch_size = opt.batch_size,
         weight_decay = 0.01,
-        warmup_ratio = 0.1,
+        warmup_ratio = 0.05,
         # fp16 = True,
         push_to_hub = False,
         # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
         evaluation_strategy = "epoch",
-        save_strategy = "epoch",
-        logging_steps = logging_steps,
-        load_best_model_at_end = True,
-        metric_for_best_model = "f1"
+        save_strategy="epoch",
+        # save_steps=5000,
     )
     trainer = Trainer(
         model = model,
         args = training_args,
-        train_dataset = mydata.train_dataset,
-        eval_dataset = mydata.test_dataset,
-        tokenizer = opt.processor,
-        compute_metrics = compute_metrics,  # evaluaion phase, return dict
+        train_dataset = trainable_ds['train'],
+        eval_dataset = trainable_ds['test'],
+        data_collator = data_collator
     )
     trainer.train()
-    trainer.evaluate()
+
 
 def compute_metrics(p,return_entity_level_metrics=False):
     predictions, labels = p
