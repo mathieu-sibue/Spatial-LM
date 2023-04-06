@@ -77,10 +77,11 @@ class RVLCDIP:
                 'position_ids': Sequence(feature=Value(dtype='int64')),
                 'attention_mask': Sequence(Value(dtype='int64')),
                 'bbox': Array2D(dtype="int64", shape=(512, 4)),
-                'labels': Sequence(feature=Value(dtype='int64')),}
-        )
-        trainable_ds = ds.map(lambda example: {"labels": example['input_ids'].copy()}, num_proc=8,
-            features = features).with_format("torch")
+                # 'labels': Sequence(feature=Value(dtype='int64')),
+                })
+        # trainable_ds = ds.map(lambda example: {"labels": example['input_ids'].copy()}, num_proc=8,
+            # features = features).with_format("torch")
+        trainable_ds = ds.map(num_proc=8, features = features).with_format("torch")
         return trainable_ds
 
     def _load_image(self,image_path):
