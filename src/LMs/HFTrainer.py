@@ -11,7 +11,7 @@ from transformers import DataCollatorForLanguageModeling
 
 
 def pretrain(opt, model, mydata):
-    data_collator = DataCollatorForLanguageModeling(tokenizer=mydata.tokenizer, mlm_probability=0.15)
+    data_collator = DataCollatorForLanguageModeling(tokenizer=mydata.tokenizer, mlm=True, mlm_probability=0.15)
 
     # logging_steps = len(mydata.train_dataset)  //opt.batch_size
     trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=0.05)
@@ -24,7 +24,7 @@ def pretrain(opt, model, mydata):
         per_device_eval_batch_size = opt.batch_size,
         weight_decay = 0.01,
         warmup_ratio = 0.05,
-        # fp16 = True,
+        fp16 = True,    # make it train fast
         push_to_hub = False,
         # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
         evaluation_strategy = "epoch",
@@ -36,7 +36,9 @@ def pretrain(opt, model, mydata):
         args = training_args,
         train_dataset = trainable_ds['train'],
         eval_dataset = trainable_ds['test'],
-        data_collator = data_collator
+        data_collator = data_collator,
+        # config = model.config,
+        # tokenizer = mydata.tokenizer
     )
     trainer.train()
 

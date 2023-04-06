@@ -36,8 +36,8 @@ if __name__=='__main__':
 
     # section 3, model, loss function, and optimizer
     # load from cs model checkpoint
-    # model = LMs.setup(params).to(params.device)
-    model = LMs.setup(params)
+    model = LMs.setup(params).to(params.device)
+    # model = LMs.setup(params)
 
     # section 4, saving path for output model
     # params.dir_path = trainer.create_save_dir(params)    # prepare dir for saving best models, put config info first
