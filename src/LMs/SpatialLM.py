@@ -65,16 +65,10 @@ class SpatialLMHead(nn.Module):
 
 
 class SpatialLMForMaskedLM(SpatialLMPreTrainedModel):
-    def __init__(self, opt, freeze_bert=False):
-        super(SpatialLMForMaskedLM, self).__init__()
-        self.opt = opt
-        self.config = AutoConfig.from_pretrained(opt.spatial_lm_dir, 
-            has_relative_attention_bias = False,
-            has_spatial_attention_bias=True)
-
-        self.spatial_lm = LayoutLMv3Model(config=self.config)
-
-        self.lm_head = SpatialLMHead(self.config)
+    def __init__(self, config):
+        super(SpatialLMForMaskedLM, self).__init__(config)
+        self.spatial_lm = LayoutLMv3Model(config, has_relative_attention_bias = False)
+        self.lm_head = SpatialLMHead(config)
 
     def forward(
         self,

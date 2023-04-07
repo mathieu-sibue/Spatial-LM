@@ -19,7 +19,8 @@ def setup(opt):
     elif opt.network_type == 'roberta':
         model = RobertaTokenClassifier(opt)
     elif opt.network_type == 'spatial_lm':
-        model = SpatialLMForMaskedLM(opt)
+        # model = SpatialLMForMaskedLM(opt)
+        model = SpatialLMForMaskedLM.from_pretrained(opt.checkpoint_path)
     else:
         raise Exception('model not supported:{}'.format(opt.network_type))
 

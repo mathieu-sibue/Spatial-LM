@@ -30,6 +30,8 @@ def pretrain(opt, model, mydata):
         # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
         evaluation_strategy = "epoch",
         save_strategy="epoch",
+        overwrite_output_dir=True,  # use only one dir
+        prediction_loss_only = True,
         # save_steps=5000,
     )
     trainer = Trainer(
@@ -42,7 +44,7 @@ def pretrain(opt, model, mydata):
         # tokenizer = mydata.tokenizer
     )
     trainer.train()
-    
+    trainer.save_model('trained_path/')
 
 
 def compute_metrics(p,return_entity_level_metrics=False):
