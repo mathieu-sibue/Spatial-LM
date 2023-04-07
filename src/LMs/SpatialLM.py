@@ -2,10 +2,36 @@ import torch
 import torch.nn as nn
 from transformers.modeling_outputs import MaskedLMOutput
 from typing import List, Optional, Tuple, Union
-from transformers import AutoConfig, AutoModel, LayoutLMv3Model
+from transformers import AutoConfig, AutoModel, LayoutLMv3Model, AutoModelForTokenClassification, AutoModelForQuestionAnswering
 from transformers.activations import gelu  # ACT2FN
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+from transformers.modeling_utils import PreTrainedModel
 
+
+class SpatialLMPreTrainedModel(PreTrainedModel):
+    """
+    An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
+    models.
+    """
+
+    config_class = AutoConfig
+    base_model_prefix = "spatial_lm"
+
+    def _init_weights(self, module):
+        """Initialize the weights"""
+        if isinstance(module, (nn.Linear, nn.Conv2d)):
+            # Slightly different from the TF version which uses truncated_normal for initialization
+            # cf https://github.com/pytorch/pytorch/pull/5617
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            if module.bias is not None:
+                module.bias.data.zero_()
+        elif isinstance(module, nn.Embedding):
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            if module.padding_idx is not None:
+                module.weight.data[module.padding_idx].zero_()
+        elif isinstance(module, nn.LayerNorm):
+            module.bias.data.zero_()
+            module.weight.data.fill_(1.0)
 
 class SpatialLMHead(nn.Module):
     """Roberta Head for masked language modeling."""
@@ -38,7 +64,7 @@ class SpatialLMHead(nn.Module):
             self.bias = self.decoder.bias
 
 
-class SpatialLMForMaskedLM(nn.Module):
+class SpatialLMForMaskedLM(SpatialLMPreTrainedModel):
     def __init__(self, opt, freeze_bert=False):
         super(SpatialLMForMaskedLM, self).__init__()
         self.opt = opt
@@ -110,6 +136,89 @@ class SpatialLMForMaskedLM(nn.Module):
             logits=prediction_scores,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
+        )
+        return outputs
+
+
+class SpatialLMForTokenclassifier(SpatialLMPreTrainedModel):
+    def __init__(self, opt, freeze_bert=False):
+        super(SpatialLMForTokenclassifier, self).__init__()
+        self.opt = opt
+        # self.config = AutoConfig.from_pretrained(opt.spatial_lm_dir, num_labels=xxx)
+        # self.spatial_lm = LayoutLMv3Model(config=self.config)
+        self.spatial_lm_token_classifier = AutoModelForTokenClassification.from_pretrained(opt.spatial_lm_dir, num_labels=opt.num_labels,
+                                                                        label2id=opt.label2id, id2label=opt.id2label)
+    def forward(
+        self,
+        input_ids: Optional[torch.LongTensor] = None,
+        bbox: Optional[torch.LongTensor] = None,
+        attention_mask: Optional[torch.FloatTensor] = None,
+        token_type_ids: Optional[torch.LongTensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        head_mask: Optional[torch.FloatTensor] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = True,
+        pixel_values: Optional[torch.LongTensor] = None,
+    ) -> Union[Tuple[torch.Tensor], MaskedLMOutput]:
+
+        outputs = self.spatial_lm_token_classifier(
+            input_ids,
+            bbox=bbox,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+            pixel_values=pixel_values,
+        )
+
+        return outputs
+
+class SpatialLMForDocVQA(SpatialLMPreTrainedModel):
+    def __init__(self, opt, freeze_bert=False):
+        super(SpatialLMForDocVQA, self).__init__()
+        self.opt = opt
+        # self.config = AutoConfig.from_pretrained(opt.spatial_lm_dir, num_labels=xxx)
+        # self.spatial_lm = LayoutLMv3Model(config=self.config)
+        self.spatial_lm_token_classifier = AutoModelForQuestionAnswering.from_pretrained(opt.spatial_lm_dir)
+
+    def forward(
+        self,
+        input_ids: Optional[torch.LongTensor] = None,
+        bbox: Optional[torch.LongTensor] = None,
+        attention_mask: Optional[torch.FloatTensor] = None,
+        token_type_ids: Optional[torch.LongTensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        head_mask: Optional[torch.FloatTensor] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        start_positions: Optional[torch.LongTensor] = None,
+        end_positions: Optional[torch.LongTensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = True,
+        pixel_values: Optional[torch.LongTensor] = None,
+    ) -> Union[Tuple[torch.Tensor], MaskedLMOutput]:
+
+        outputs = self.spatial_lm_token_classifier(
+            input_ids,
+            bbox=bbox,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+            pixel_values=pixel_values,
+            start_positions = start_positions,
+            end_positions = end_positions
         )
 
         return outputs
