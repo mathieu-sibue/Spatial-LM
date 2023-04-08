@@ -15,7 +15,7 @@ class RVLCDIP:
 
         # four maps
         dataset_list = []
-        for i in range(5):
+        for i in range(10):
             ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl'+str(i)+'_dataset.hf'
             self.raw_ds = self.get_raw_ds(ds_path)
             self.processed_ds = self.get_preprocessed_ds(self.raw_ds)
@@ -36,7 +36,7 @@ class RVLCDIP:
         raw_ds = load_from_disk(ds_path) # {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
         # raw_ds = Dataset.from_dict(raw_ds[:200])    # obtain subset for experiment/debugging use
         # 2 load img obj and norm bboxes 
-        ds = raw_ds.map(_load_imgs_obj, num_proc=8, remove_columns=['tboxes']) # load image objects
+        ds = raw_ds.map(_load_imgs_obj, num_proc=32, remove_columns=['tboxes']) # load image objects
 
         return ds
 
@@ -55,7 +55,7 @@ class RVLCDIP:
             return encodings
 
         processed_ds = ds.map(_preprocess,
-            batched=True, num_proc=8, remove_columns=['tokens', 'bboxes','block_ids','images','image'])
+            batched=True, num_proc=32, remove_columns=['tokens', 'bboxes','block_ids','images','image'])
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'pixel_values']
         return processed_ds
 
@@ -77,11 +77,11 @@ class RVLCDIP:
                 'position_ids': Sequence(feature=Value(dtype='int64')),
                 'attention_mask': Sequence(Value(dtype='int64')),
                 'bbox': Array2D(dtype="int64", shape=(512, 4)),
-                # 'labels': Sequence(feature=Value(dtype='int64')),
+                'labels': Sequence(feature=Value(dtype='int64')),
                 })
-        # trainable_ds = ds.map(lambda example: {"labels": example['input_ids'].copy()}, num_proc=8,
-            # features = features).with_format("torch")
-        trainable_ds = ds.map(num_proc=8, features = features).with_format("torch")
+        trainable_ds = ds.map(lambda example: {"labels": example['input_ids'].copy()}, num_proc=32,
+            features = features).with_format("torch")
+
         return trainable_ds
 
     def _load_image(self,image_path):

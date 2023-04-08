@@ -12,6 +12,7 @@ from transformers import DataCollatorForLanguageModeling
 
 def pretrain(opt, model, mydata):
     # mlm= True uses masked language model; otherwise, causal LM (NTP); 
+    # mydata.tokenizer.pad_token = tokenizer.eos_token  # no idea why??
     data_collator = DataCollatorForLanguageModeling(tokenizer=mydata.tokenizer, mlm=True, mlm_probability=0.15)
 
     # logging_steps = len(mydata.train_dataset)  //opt.batch_size
@@ -44,7 +45,7 @@ def pretrain(opt, model, mydata):
         # tokenizer = mydata.tokenizer
     )
     trainer.train()
-    trainer.save_model('trained_path/')
+    trainer.save_model('trained_path/large')
 
 
 def compute_metrics(p,return_entity_level_metrics=False):

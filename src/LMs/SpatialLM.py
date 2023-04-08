@@ -34,7 +34,7 @@ class SpatialLMPreTrainedModel(PreTrainedModel):
             module.weight.data.fill_(1.0)
 
 class SpatialLMHead(nn.Module):
-    """Roberta Head for masked language modeling."""
+    """copied from Roberta Head for masked language modeling."""
 
     def __init__(self, config):
         super().__init__()
@@ -67,7 +67,8 @@ class SpatialLMHead(nn.Module):
 class SpatialLMForMaskedLM(SpatialLMPreTrainedModel):
     def __init__(self, config):
         super(SpatialLMForMaskedLM, self).__init__(config)
-        self.spatial_lm = LayoutLMv3Model(config, has_relative_attention_bias = False)
+        config.has_relative_attention_bias = False
+        self.spatial_lm = LayoutLMv3Model(config)
         self.lm_head = SpatialLMHead(config)
 
     def forward(
