@@ -19,7 +19,7 @@ def pretrain(opt, model, mydata):
     trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=0.05)
 
     training_args = TrainingArguments(
-        output_dir = opt.output_dir+'/test_base',
+        output_dir = opt.output_dir,
         num_train_epochs = opt.epochs,
         learning_rate = opt.lr,
         per_device_train_batch_size = opt.batch_size,
@@ -33,6 +33,7 @@ def pretrain(opt, model, mydata):
         save_strategy="epoch",
         overwrite_output_dir=True,  # use only one dir
         prediction_loss_only = True,
+        logging_dir='./logs',  
         # save_steps=5000,
     )
     trainer = Trainer(

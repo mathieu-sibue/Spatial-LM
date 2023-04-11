@@ -39,24 +39,11 @@ if __name__=='__main__':
     model = LMs.setup(params).to(params.device)
     # model = LMs.setup(params)
 
-    # section 4, saving path for output model
-    # params.dir_path = trainer.create_save_dir(params)    # prepare dir for saving best models, put config info first
-    params.output_dir = '/home/ubuntu/air/vrdu/output/pretrain_rvl'
-    # section 4, load data; prepare output_dim/num_labels, id2label, label2id for section3; 
-    # 4.1 traditional train
+    # section 4, data and saving path for output model
+    params.output_dir = '/home/ubuntu/air/vrdu/output/pretrain_rvl/test_large'
     mydata = mydataset.setup(params)
     
+    # section 5, pretrain
     HFTrainer.pretrain(params, model, mydata)
-
-    # 4.2 train many datasets
-    # for i in range(3, 8):
-    #     params.rvl_cdip = '/home/ubuntu/air/vrdu/datasets/rvl_pretrain_datasets/'+str(i)+'_fixed_bert.hf'
-    #     mydata = pretrain_dataset.setup(params)
-    #     best_f1 = trainer.pretrain(params, model, mydata)
-    #     del mydata
-
-
-    # section 5, inference only (on test_dataset)
-    # inferencer.inference(params,model,mydata,'v3_base_benchmark_Jan_1pm.json')
 
 

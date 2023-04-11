@@ -5,23 +5,19 @@ from PIL import Image
 from datasets import Dataset, concatenate_datasets
 import transformers
 
-class RVLCDIP:
+class FUNSD_CORD_SORIE:
     def __init__(self,opt):
         self.opt = opt
         self.config = AutoConfig.from_pretrained(opt.layoutlm_dir)
         self.tokenizer = AutoTokenizer.from_pretrained(opt.layoutlm_dir)
         assert isinstance(self.tokenizer, transformers.PreTrainedTokenizerFast) # get sub
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False) 
-        self.cpu_num = 64
-        # four maps
-        dataset_list = []
-        for i in range(10):
-            ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl'+str(i)+'_dataset.hf'
-            self.raw_ds = self.get_raw_ds(ds_path)
-            self.processed_ds = self.get_preprocessed_ds(self.raw_ds)
-            temp_ds = self.get_label_define_features(self.processed_ds)
-            dataset_list.append(temp_ds)
-        self.trainable_ds = concatenate_datasets(dataset_list)
+        self.cpu_num = 8
+        # put the dataset path here
+        ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/funsd_cord_sorie_dataset.hf'
+        self.raw_ds = self.get_raw_ds(ds_path)
+        self.processed_ds = self.get_preprocessed_ds(self.raw_ds)
+        self.trainable_ds = self.get_label_define_features(self.processed_ds)
 
     # load raw dataset (including image object)
     def get_raw_ds(self, ds_path):

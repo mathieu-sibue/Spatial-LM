@@ -65,10 +65,14 @@ class SpatialLMHead(nn.Module):
 
 
 class SpatialLMForMaskedLM(SpatialLMPreTrainedModel):
-    def __init__(self, config):
+    def __init__(self, config, start_dir_path=None):
         super(SpatialLMForMaskedLM, self).__init__(config)
         config.has_relative_attention_bias = False
-        self.spatial_lm = LayoutLMv3Model(config)
+        # if the model is loaded the first time, we take advantage of the layoutlm
+        if start_dir_path:
+            self.spatial_lm = LayoutLMv3Model.from_pretrained(start_dir_path, config = config)
+        else:
+            self.spatial_lm = LayoutLMv3Model(config)
         self.lm_head = SpatialLMHead(config)
 
     def forward(

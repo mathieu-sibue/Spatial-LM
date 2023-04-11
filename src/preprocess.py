@@ -80,18 +80,21 @@ def get_file_list():  # .tif files
         res.append(image_path)
     return res
 # step1. get image path list from a folder
-funsd_plus_val = '/home/ubuntu/air/vrdu/datasets/funsd_plus/val_data'
+funsd_plus_val = '/home/ubuntu/air/vrdu/datasets/funsd_plus/val_data/images'
 funsd_plus_train = '/home/ubuntu/air/vrdu/datasets/funsd_plus/train_data/images'
-funsd_plus_test = '/home/ubuntu/air/vrdu/datasets/funsd_plus/test_data'
+funsd_plus_test = '/home/ubuntu/air/vrdu/datasets/funsd_plus/test_data/images'
 
 cord_train = '/home/ubuntu/air/vrdu/datasets/CORD/train/image'
 cord_test = '/home/ubuntu/air/vrdu/datasets/CORD/test/image'
-cprd_dev = '/home/ubuntu/air/vrdu/datasets/CORD/dev/image'
+cord_dev = '/home/ubuntu/air/vrdu/datasets/CORD/dev/image'
 
+sorie_train = '/home/ubuntu/air/vrdu/datasets/sorie2019/train/img'
+sorie_test = '/home/ubuntu/air/vrdu/datasets/sorie2019/test/img'
 
 
 def get_imgs_list(dir):
-    files = os.path.listdir(dir)
+    files = os.listdir(dir)
+    files = [os.path.join(dir,file) for file in files]
     return files
 
 # step2: shuffle and split into 5 subsets
@@ -100,23 +103,46 @@ def split(input_list, n):
     return (input_list[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
 
+# load file list
 if __name__ == "__main__":
-    files = get_file_list()
+    # 1 get file_list
+    all_files = []
+    for dir in [funsd_plus_val,funsd_plus_train,funsd_plus_test, cord_train,
+        cord_test, cord_dev, sorie_train, sorie_test]:
 
-    random.Random(88).shuffle(files)
+        files = get_imgs_list(dir)
+        all_files += files
+    print('total files:',len(all_files))
+    random.Random(88).shuffle(all_files)    # shuffle
 
-    subsets = list(split(files, 10))
-    print('dataset num: ',len(subsets))
-    # for i,subset in enumerate(subsets):
-    for i in range(0,1):
-        subset = subsets[i]
-        print('dataset ',i,', sample size:',len(subset))
-        mydataset = tesseract4img.imgs_to_dataset_generator(subset)
+    # 2 generate dataset for file_list
+    mydataset = tesseract4img.imgs_to_dataset_generator(all_files)
 
-        saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl' + str(i) + '_dataset.hf'
-        mydataset.save_to_disk(saveto)
 
-        print(mydataset)
+    print(mydataset)
+    # 3 save dataset
+    saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/funsd_cord_sorie_dataset.hf'
+    mydataset.save_to_disk(saveto)
+
+
+
+# if __name__ == "__main__":
+#     files = get_file_list()
+
+#     random.Random(88).shuffle(files)
+
+#     subsets = list(split(files, 10))
+#     print('dataset num: ',len(subsets))
+#     # for i,subset in enumerate(subsets):
+#     for i in range(0,1):
+#         subset = subsets[i]
+#         print('dataset ',i,', sample size:',len(subset))
+#         mydataset = tesseract4img.imgs_to_dataset_generator(subset)
+
+#         saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl' + str(i) + '_dataset.hf'
+#         mydataset.save_to_disk(saveto)
+
+#         print(mydataset)
     
     # for i in range(7, len(subsets)):
     #     subset = subsets[i]
