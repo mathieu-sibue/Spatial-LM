@@ -12,7 +12,7 @@ class FUNSD_CORD_SORIE:
         self.tokenizer = AutoTokenizer.from_pretrained(opt.layoutlm_dir)
         assert isinstance(self.tokenizer, transformers.PreTrainedTokenizerFast) # get sub
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False) 
-        self.cpu_num = 8
+        self.cpu_num = 32
         # put the dataset path here
         ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/funsd_cord_sorie_dataset.hf'
         self.raw_ds = self.get_raw_ds(ds_path)

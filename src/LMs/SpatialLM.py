@@ -139,14 +139,48 @@ class SpatialLMForMaskedLM(SpatialLMPreTrainedModel):
         return outputs
 
 
+class SpatialLMClassificationHead(nn.Module):
+    """
+    Head for sentence-level classification tasks. Reference: RobertaClassificationHead
+    """
+
+    def __init__(self, config, pool_feature=False):
+        super().__init__()
+        self.pool_feature = pool_feature
+        if pool_feature:
+            self.dense = nn.Linear(config.hidden_size * 3, config.hidden_size)
+        else:
+            self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        classifier_dropout = (
+            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
+        )
+        self.dropout = nn.Dropout(classifier_dropout)
+        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
+
+    def forward(self, x):
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+
+
 class SpatialLMForTokenclassifier(SpatialLMPreTrainedModel):
-    def __init__(self, opt, freeze_bert=False):
-        super(SpatialLMForTokenclassifier, self).__init__()
-        self.opt = opt
-        # self.config = AutoConfig.from_pretrained(opt.spatial_lm_dir, num_labels=xxx)
-        # self.spatial_lm = LayoutLMv3Model(config=self.config)
-        self.spatial_lm_token_classifier = AutoModelForTokenClassification.from_pretrained(opt.spatial_lm_dir, num_labels=opt.num_labels,
-                                                                        label2id=opt.label2id, id2label=opt.id2label)
+    def __init__(self, config):
+        super().__init__(config)
+        self.num_labels = config.num_labels
+
+        self.spatial_lm = LayoutLMv3Model(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        if config.num_labels < 10:
+            self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+        else:
+            self.classifier = SpatialLMClassificationHead(config, pool_feature = False)
+        
+        self.init_weights()
+
+
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
@@ -177,7 +211,31 @@ class SpatialLMForTokenclassifier(SpatialLMPreTrainedModel):
             pixel_values=pixel_values,
         )
 
+        input_shape = input_ids.size()
+        seq_length = input_shape[1]
+
+        sequence_output = outputs[0][:, :seq_length]
+        sequence_output = self.dropout(sequence_output)
+        logits = self.classifier(sequence_output)
+
+        loss = None
+        if labels is not None:
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+
+        if not return_dict:
+            output = (logits,) + outputs[1:]
+            return ((loss,) + output) if loss is not None else output
+
+        return TokenClassifierOutput(
+            loss=loss,
+            logits=logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
         return outputs
+
+
 
 class SpatialLMForDocVQA(SpatialLMPreTrainedModel):
     def __init__(self, opt, freeze_bert=False):
