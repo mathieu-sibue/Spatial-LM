@@ -21,18 +21,21 @@ def setup(opt):
     elif opt.network_type == 'roberta':
         model = RobertaTokenClassifier(opt)
     elif opt.network_type == 'spatial_lm':
-        # from_pretrained is put inside or outside
-        if 'checkpoint_path' in opt.__dict__.keys():
-            print('== load from the checkpoint === ')
-            config = AutoConfig.from_pretrained(opt.checkpoint_path)   # borrow config
-            model = SpatialLMForMaskedLM.from_pretrained(opt.checkpoint_path, config = config)
-        else:
-            # the first time, we first start from layoutlm; put layoutlm_dir
-            print('=== load the first time from layoutlmv3 ===')
-            config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
-            model = SpatialLMForMaskedLM(config=config, start_dir_path=opt.layoutlm_dir)
-    elif opt.network_type == 'spatial_tok':
-        model = SpatialLMForTokenclassifier.from_pretrained(opt.checkpoint_path)
+        if opt.task_type == 'mlm':
+            # from_pretrained is put inside or outside
+            if 'checkpoint_path' in opt.__dict__.keys():
+                print('== load from the checkpoint === ')
+                config = AutoConfig.from_pretrained(opt.checkpoint_path)   # borrow config
+                model = SpatialLMForMaskedLM.from_pretrained(opt.checkpoint_path, config = config)
+            else:
+                # the first time, we first start from layoutlm; put layoutlm_dir
+                print('=== load the first time from layoutlmv3 ===')
+                config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
+                model = SpatialLMForMaskedLM(config=config, start_dir_path=opt.layoutlm_dir)
+        elif opt.task_type == 'token-classifier':
+            config = AutoConfig.from_pretrained(opt.checkpoint_path)
+            model = SpatialLMForTokenclassifier.from_pretrained(opt.checkpoint_path, config = config)
+
     else:
         raise Exception('model not supported:{}'.format(opt.network_type))
 

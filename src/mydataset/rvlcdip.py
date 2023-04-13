@@ -59,16 +59,6 @@ class RVLCDIP:
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'pixel_values']
         return processed_ds
 
-    def _add_relative_position(self,ds):
-        # add position_ids
-        position_ids = []
-        for i, block_ids in enumerate(ds['block_ids']):
-            word_ids = ds.word_ids(i)
-            rel_pos = get_rel_pos(word_ids, block_ids)
-            position_ids.append(rel_pos)
-        ds['position_ids'] = position_ids
-        return ds
-
 
     def get_label_define_features(self, ds):
         features = Features({
@@ -105,10 +95,11 @@ class RVLCDIP:
         for word_id in word_ids:
             if word_id is None:
                 res.append(self.config.pad_token_id)
+                continue
             else:
                 curr_block = block_ids[word_id]   # word_id is the 0,1,2,3,.. word index;
                 if curr_block != prev_block:
-                    # set back to 0; 
+                    # set back to 2; 
                     rel_cnt = self.config.pad_token_id+1
                     res.append(rel_cnt) # operate
                     # reset prev_block

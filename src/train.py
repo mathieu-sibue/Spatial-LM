@@ -21,7 +21,7 @@ def parse_args(config_path):
 if __name__=='__main__':
 
     # Section 1, parse parameters
-    args = parse_args('config/finetune.ini') # from config file
+    args = parse_args('config/train.ini') # from config file
     params = Params()   # put to param object
     params.parse_config(args.config_file)
     params.config_file = args.config_file
@@ -35,5 +35,9 @@ if __name__=='__main__':
 
     # section 3, get the model
     model = LMs.setup(params)
+
+    # section 5, train (finetune)
+    HFTrainer.train(params, model, mydata)
+
 
     

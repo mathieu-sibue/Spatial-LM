@@ -139,3 +139,5 @@ models/__pycache__/*
 dataload/__pycache__/*
 tmp_dir/*
 src/tmp_dir/*
+src/trained_path/*
+

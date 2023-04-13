@@ -28,9 +28,9 @@ class FUNSD:
         self.boxes_col_name = "bboxes"
         self.label_col_name = "ner_tags"
         self.cpu_num = 8
-        # step 2: get raw ds
+        # step 2.1: get raw ds (already normalized bbox)
         raw_train, raw_test = self.get_raw_ds()
-        # step 2.1 encode the label and return label dataset
+        # step 2.2, get  labeled ds (get label list, and map label dataset)
         _,_, opt.label_list = self._get_label_map(raw_train)
         opt.num_labels = len(opt.label_list)
         self.class_label = ClassLabel(num_classes=opt.num_labels, names = opt.label_list)
@@ -39,19 +39,18 @@ class FUNSD:
         {'B-ANSWER': 0, 'B-HEADER': 1, 'B-QUESTION': 2, 'I-ANSWER': 3, 'I-HEADER': 4, 'I-QUESTION': 5, 'O': 6}
         ['B-ANSWER', 'B-HEADER', 'B-QUESTION', 'I-ANSWER', 'I-HEADER', 'I-QUESTION', 'O']
         '''
+        # map label ds
         train_label_ds, test_label_ds = self.get_label_ds(raw_train), self.get_label_ds(raw_test)
-        # print(train_label_ds)
-        # print(train_label_ds[0])
 
-        # step 3: prepare for getting trainable data
-        trainable_train_ds, trainable_test_ds = self.get_preprocessed_ds(train_label_ds),self.get_preprocessed_ds(test_label_ds)
+        # step 3: prepare for getting trainable data (encode and define features)
+        trainable_train_ds, trainable_test_ds = 
+            self.get_preprocessed_ds(train_label_ds),self.get_preprocessed_ds(test_label_ds)
         # print(trainable_train_ds)
         # print(trainable_train_ds[0])
         self.trainable_ds = DatasetDict({
             "train" : trainable_train_ds , 
             "test" : trainable_test_ds 
         })
-
 
     def get_raw_ds(self):
         train = Dataset.from_generator(self.ds_generator, gen_kwargs={'base_dir':self.opt.funsd_train})
@@ -131,8 +130,11 @@ class FUNSD:
             'bbox': Array2D(dtype="int64", shape=(512, 4)),
             'labels': Sequence(feature=Value(dtype='int64')),
         })
+        # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
+        #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
         processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
-            remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
+            remove_columns=ds.column_names, features=features).with_format("torch")
+    
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'labels', 'pixel_values']
         return processed_ds
 
@@ -215,6 +217,7 @@ class FUNSD:
         for word_id in word_ids:
             if word_id is None:
                 res.append(self.config.pad_token_id)
+                continue
             else:
                 curr_block = block_ids[word_id]   # word_id is the 0,1,2,3,.. word index;
                 if curr_block != prev_block:
