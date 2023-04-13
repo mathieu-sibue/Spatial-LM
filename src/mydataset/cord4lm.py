@@ -6,7 +6,7 @@ import json
 import transformers
 from PIL import Image
 
-class FUNSD:
+class CORD:
     def __init__(self,opt) -> None:    
         self.opt = opt
         '''
@@ -29,19 +29,15 @@ class FUNSD:
         raw_train, raw_test = self.get_raw_ds()
         # step 2.2, get  labeled ds (get label list, and map label dataset)
         _,_, opt.label_list = self._get_label_map(raw_train)
-        opt.num_labels = len(opt.label_list)
+        opt.num_labels = len(opt.label_list)    # 54; 27 pairs
         self.class_label = ClassLabel(num_classes=opt.num_labels, names = opt.label_list)
-        '''
-        {0: 'B-ANSWER', 1: 'B-HEADER', 2: 'B-QUESTION', 3: 'I-ANSWER', 4: 'I-HEADER', 5: 'I-QUESTION', 6: 'O'}
-        {'B-ANSWER': 0, 'B-HEADER': 1, 'B-QUESTION': 2, 'I-ANSWER': 3, 'I-HEADER': 4, 'I-QUESTION': 5, 'O': 6}
-        ['B-ANSWER', 'B-HEADER', 'B-QUESTION', 'I-ANSWER', 'I-HEADER', 'I-QUESTION', 'O']
-        '''
+
         # map label ds
         train_label_ds, test_label_ds = self.get_label_ds(raw_train), self.get_label_ds(raw_test)
 
         # step 3: prepare for getting trainable data (encode and define features)
         trainable_train_ds, trainable_test_ds = self.get_preprocessed_ds(train_label_ds),self.get_preprocessed_ds(test_label_ds)
-        # print(trainable_train_ds)
+        print(trainable_train_ds)
         # print(trainable_train_ds[0])
         self.trainable_ds = DatasetDict({
             "train" : trainable_train_ds , 
@@ -49,14 +45,16 @@ class FUNSD:
         })
 
     def get_raw_ds(self):
-        train = Dataset.from_generator(self.ds_generator, gen_kwargs={'base_dir':self.opt.funsd_train})
-        test = Dataset.from_generator(self.ds_generator, gen_kwargs={'base_dir':self.opt.funsd_test})
+        train = Dataset.from_generator(self.ds_generator, gen_kwargs={'base_dir':self.opt.cord_train})
+        test = Dataset.from_generator(self.ds_generator, gen_kwargs={'base_dir':self.opt.cord_test})
         return train, test
 
     def ds_generator(self, base_dir):
         # logger.info("⏳ Generating examples from = %s", filepath)
-        ann_dir = os.path.join(base_dir, "adjusted_annotations")
-        img_dir = os.path.join(base_dir, "images")
+        ann_dir = os.path.join(base_dir, "json")
+        img_dir = os.path.join(base_dir, "image")
+
+        block_idx = 1
         for doc_idx, file in enumerate(sorted(os.listdir(ann_dir))):
             # print('---doc id:---',doc_idx)
             tokens = []
@@ -71,12 +69,10 @@ class FUNSD:
             image_path = image_path.replace("json", "png")
             image, size = self._load_image(image_path)
             block_idx = 1
-            for block in data["form"]:
+            for block in data["valid_line"]:
                 cur_line_bboxes = []
-                words, label = block["words"], block["label"]
-                text = block['text']
-                if text.strip() == '': continue
-                words = [w for w in words if w["text"].strip() != ""]
+                line_words, label = block["words"], block["category"]
+                words = [w for w in line_words if w["text"].strip() != ""]
                 if len(words) == 0:
                     continue
                 if label == "other":
@@ -84,17 +80,17 @@ class FUNSD:
                         tokens.append(w["text"])
                         block_ids.append(block_idx)
                         ner_tags.append("O")
-                        cur_line_bboxes.append(self._normalize_bbox(w["box"], size))
+                        cur_line_bboxes.append(self._normalize_bbox(self._quad_to_box(w["quad"]), size))
                 else:
                     tokens.append(words[0]["text"])
                     block_ids.append(block_idx)
                     ner_tags.append("B-" + label.upper())
-                    cur_line_bboxes.append(self._normalize_bbox(words[0]["box"], size))
+                    cur_line_bboxes.append(self._normalize_bbox(self._quad_to_box(words[0]["quad"]), size))
                     for w in words[1:]:
                         tokens.append(w["text"])
                         block_ids.append(block_idx)
                         ner_tags.append("I-" + label.upper())
-                        cur_line_bboxes.append(self._normalize_bbox(w["box"], size))
+                        cur_line_bboxes.append(self._normalize_bbox(self._quad_to_box(w["quad"]), size))
                 cur_line_bboxes = self._get_line_bbox(cur_line_bboxes)  # shared boxes, token-wise
                 bboxes.extend(cur_line_bboxes)
                 block_idx += 1
@@ -183,6 +179,28 @@ class FUNSD:
         assert x1 >= x0 and y1 >= y0
         bbox = [[x0, y0, x1, y1] for _ in range(len(bboxs))]
         return bbox
+    
+    def _quad_to_box(self, quad):
+    # test 87 is wrongly annotated
+        box = (
+            max(0, quad["x1"]),
+            max(0, quad["y1"]),
+            quad["x3"],
+            quad["y3"]
+        )
+        if box[3] < box[1]:
+            bbox = list(box)
+            tmp = bbox[3]
+            bbox[3] = bbox[1]
+            bbox[1] = tmp
+            box = tuple(bbox)
+        if box[2] < box[0]:
+            bbox = list(box)
+            tmp = bbox[2]
+            bbox[2] = bbox[0]
+            bbox[0] = tmp
+            box = tuple(bbox)
+        return box
 
     def _get_rel_pos(self,word_ids, block_ids):   # [None, 0, 1, 2, 2, 3, None]; [1,1,2,2] which is dict {word_idx: block_num}
         res = []
