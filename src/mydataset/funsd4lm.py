@@ -1,9 +1,10 @@
 from datasets import load_dataset ,Features, Sequence, Value, Array2D, Array3D, Dataset
 from datasets.features import ClassLabel
-from transformers import AutoProcessor, AutoTokenizer
+from transformers import AutoProcessor, AutoTokenizer, AutoConfig
 import os
 import json
 import transformers
+from PIL import Image
 
 class FUNSD:
     def __init__(self,opt) -> None:    
@@ -16,6 +17,8 @@ class FUNSD:
             })
         })
         '''
+        # step1: create config, tokenizer, and processor
+        self.config = AutoConfig.from_pretrained(opt.layoutlm_dir)
         self.tokenizer = AutoTokenizer.from_pretrained(opt.layoutlm_dir)
         assert isinstance(self.tokenizer, transformers.PreTrainedTokenizerFast)  # get sub
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False)    # wrap of featureExtract & tokenizer
@@ -24,20 +27,31 @@ class FUNSD:
         self.text_col_name = "tokens"
         self.boxes_col_name = "bboxes"
         self.label_col_name = "ner_tags"
-        # load data
+        self.cpu_num = 8
+        # step 2: get raw ds
         raw_train, raw_test = self.get_raw_ds()
-        opt.id2label, opt.label2id, opt.label_list = self._get_label_map(raw_train)
+        # step 2.1 encode the label and return label dataset
+        _,_, opt.label_list = self._get_label_map(raw_train)
         opt.num_labels = len(opt.label_list)
+        self.class_label = ClassLabel(num_classes=opt.num_labels, names = opt.label_list)
+        '''
+        {0: 'B-ANSWER', 1: 'B-HEADER', 2: 'B-QUESTION', 3: 'I-ANSWER', 4: 'I-HEADER', 5: 'I-QUESTION', 6: 'O'}
+        {'B-ANSWER': 0, 'B-HEADER': 1, 'B-QUESTION': 2, 'I-ANSWER': 3, 'I-HEADER': 4, 'I-QUESTION': 5, 'O': 6}
+        ['B-ANSWER', 'B-HEADER', 'B-QUESTION', 'I-ANSWER', 'I-HEADER', 'I-QUESTION', 'O']
+        '''
+        train_label_ds, test_label_ds = self.get_label_ds(raw_train), self.get_label_ds(raw_test)
+        # print(train_label_ds)
+        # print(train_label_ds[0])
 
-        print(raw_train)
-        print(opt.id2label)
-        print(opt.label2id)
-        print(opt.label_list)
+        # step 3: prepare for getting trainable data
+        trainable_train_ds, trainable_test_ds = self.get_preprocessed_ds(train_label_ds),self.get_preprocessed_ds(test_label_ds)
+        # print(trainable_train_ds)
+        # print(trainable_train_ds[0])
+        self.trainable_ds = DatasetDict({
+            "train" : trainable_train_ds , 
+            "test" : trainable_test_ds 
+        })
 
-        # prepare for getting trainable data
-        # 6 labels: {0: 'O', 1: 'B-HEADER', 2: 'I-HEADER', 3: 'B-QUESTION', 4: 'I-QUESTION', 5: 'B-ANSWER', 6: 'I-ANSWER'}
-        # processed_train_ds, processed_test_ds = self.get_preprocessed_ds(raw_train),self.get_preprocessed_ds(raw_test)
-        # trainable_train_ds, trainable_test_ds = self.get_defined_ds(processed_train_ds), self.get_defined_ds(processed_test_ds)
 
     def get_raw_ds(self):
         train = Dataset.from_generator(self.ds_generator, gen_kwargs={'base_dir':self.opt.funsd_train})
@@ -61,7 +75,7 @@ class FUNSD:
             image_path = os.path.join(img_dir, file)
             image_path = image_path.replace("json", "png")
             image, size = self._load_image(image_path)
-            block_id = 1
+            block_idx = 1
             for block in data["form"]:
                 cur_line_bboxes = []
                 words, label = block["words"], block["label"]
@@ -73,25 +87,25 @@ class FUNSD:
                 if label == "other":
                     for w in words:
                         tokens.append(w["text"])
-                        block_ids.append(block_id)
+                        block_ids.append(block_idx)
                         ner_tags.append("O")
                         cur_line_bboxes.append(self._normalize_bbox(w["box"], size))
                 else:
                     tokens.append(words[0]["text"])
-                    block_ids.append(block_id)
+                    block_ids.append(block_idx)
                     ner_tags.append("B-" + label.upper())
                     cur_line_bboxes.append(self._normalize_bbox(words[0]["box"], size))
                     for w in words[1:]:
                         tokens.append(w["text"])
-                        block_ids.append(block_id)
+                        block_ids.append(block_idx)
                         ner_tags.append("I-" + label.upper())
                         cur_line_bboxes.append(self._normalize_bbox(w["box"], size))
                 cur_line_bboxes = self._get_line_bbox(cur_line_bboxes)  # shared boxes, token-wise
                 bboxes.extend(cur_line_bboxes)
-                block_id += 1
+                block_idx += 1
 
             yield {"id": doc_idx, "tokens": tokens, "bboxes": bboxes, "ner_tags": ner_tags,
-                   "block_ids": block_id, "image": image}
+                   "block_ids": block_ids, "image": image}
         # one_page_info = {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
 
 
@@ -108,15 +122,7 @@ class FUNSD:
                 position_ids.append(rel_pos)
             encodings['position_ids'] = position_ids
             return encodings
-
-        processed_ds = ds.map(_preprocess,
-            batched=True, num_proc=self.cpu_num, remove_columns=['tokens', 'bboxes','block_ids','image'])
-        # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'pixel_values']
-        return processed_ds
-
-
-    def get_defined_ds(self,ds):
-        # return self.prepare_one_doc(self.dataset[split])
+        
         features = Features({
             'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
             'input_ids': Sequence(feature=Value(dtype='int64')),
@@ -125,21 +131,50 @@ class FUNSD:
             'bbox': Array2D(dtype="int64", shape=(512, 4)),
             'labels': Sequence(feature=Value(dtype='int64')),
         })
-        trainable_ds = ds.map(num_proc=self.cpu_num,
-                              batched=True, features=features).with_format("torch")
+        processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
+            remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
+        # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'labels', 'pixel_values']
+        return processed_ds
+
+
+    def get_label_ds(self,ds):
+        def map_label2id(sample):
+            sample['ner_tags'] = [self.class_label.str2int(ner_label) for ner_label in sample['ner_tags']]
+            return sample
+        label_ds = ds.map(map_label2id, num_proc=self.cpu_num)
+        return label_ds
+
+
+    def get_label_defined_ds(self,ds):
+        # return self.prepare_one_doc(self.dataset[split])
+        
+        features = Features({
+            'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
+            'input_ids': Sequence(feature=Value(dtype='int64')),
+            'position_ids': Sequence(feature=Value(dtype='int64')),
+            'attention_mask': Sequence(Value(dtype='int64')),
+            'bbox': Array2D(dtype="int64", shape=(512, 4)),
+            'labels': Sequence(feature=Value(dtype='int64')),
+        })
+
+        def map_label2id(sample):
+            sample['ner_tags'] = [self.class_label.str2int(ner_label) for ner_label in sample['ner_tags']]
+            return example
+
+        trainable_ds = ds.map(map_label2id, num_proc=self.cpu_num, features=features).with_format("torch")
         # trainable_samples = trainable_samples.set_format("torch")  # with_format is important
         return trainable_ds
 
 
-    def get_label_list(self,labels):
+    def _get_label_list(self,labels):
         unique_labels = set()
         for label in labels:
             unique_labels = unique_labels | set(label)
         label_list = list(unique_labels)
         label_list.sort()
         return label_list
-
-    def get_label_map(self,ds):
+    # get label list
+    def _get_label_map(self,ds):
         features = ds.features
         column_names = ds.column_names
         
@@ -149,7 +184,7 @@ class FUNSD:
             id2label = {k: v for k,v in enumerate(label_list)}
             label2id = {v: k for k,v in enumerate(label_list)}
         else:
-            label_list = self.get_label_list(ds[self.label_col_name])
+            label_list = self._get_label_list(ds[self.label_col_name])   # this invokes another function
             id2label = {k: v for k,v in enumerate(label_list)}
             label2id = {v: k for k,v in enumerate(label_list)}
         return id2label, label2id, label_list
@@ -172,6 +207,26 @@ class FUNSD:
         assert x1 >= x0 and y1 >= y0
         bbox = [[x0, y0, x1, y1] for _ in range(len(bboxs))]
         return bbox
+
+    def _get_rel_pos(self,word_ids, block_ids):   # [None, 0, 1, 2, 2, 3, None]; [1,1,2,2] which is dict {word_idx: block_num}
+        res = []
+        rel_cnt = self.config.pad_token_id+1
+        prev_block = 1
+        for word_id in word_ids:
+            if word_id is None:
+                res.append(self.config.pad_token_id)
+            else:
+                curr_block = block_ids[word_id]   # word_id is the 0,1,2,3,.. word index;
+                if curr_block != prev_block:
+                    # set back to 0; 
+                    rel_cnt = self.config.pad_token_id+1
+                    res.append(rel_cnt) # operate
+                    # reset prev_block
+                    prev_block = curr_block
+                else:
+                    res.append(rel_cnt)
+            rel_cnt+=1
+        return res
 
 if __name__ == '__main__':
     # Section 1, parse parameters
