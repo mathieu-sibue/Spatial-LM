@@ -3,8 +3,8 @@
 from LMs.LayoutLM import LayoutLMTokenclassifier
 from LMs.LayoutLM import LayoutLM4DocVQA
 from LMs.Roberta import GraphRobertaTokenClassifier, RobertaTokenClassifier
-from LMs.SpatialLM import SpatialLMForMaskedLM, SpatialLMForTokenclassifier
-from transformers import AutoConfig
+from LMs.SpatialLM import SpatialLMForMaskedLM, SpatialLMForTokenclassifier, SpatialLMConfig
+from transformers import AutoConfig, AutoModel
 
 
 def setup(opt):
@@ -24,16 +24,18 @@ def setup(opt):
         if opt.task_type == 'mlm':
             # from_pretrained is put inside or outside
             if 'checkpoint_path' in opt.__dict__.keys():
-                print('== load from the checkpoint === ')
-                config = AutoConfig.from_pretrained(opt.checkpoint_path)   # borrow config
+                print('== load from the checkpoint === ', opt.checkpoint_path)
+                config = SpatialLMConfig.from_pretrained(opt.checkpoint_path)   # borrow config
                 model = SpatialLMForMaskedLM.from_pretrained(opt.checkpoint_path, config = config)
             else:
                 # the first time, we first start from layoutlm; put layoutlm_dir
                 print('=== load the first time from layoutlmv3 ===')
                 config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
                 model = SpatialLMForMaskedLM(config=config, start_dir_path=opt.layoutlm_dir)
+
         elif opt.task_type == 'token-classifier':
-            config = AutoConfig.from_pretrained(opt.checkpoint_path)
+            config = SpatialLMConfig.from_pretrained(opt.checkpoint_path)
+            config.num_labels=opt.num_labels    # set label num
             model = SpatialLMForTokenclassifier.from_pretrained(opt.checkpoint_path, config = config)
 
     else:

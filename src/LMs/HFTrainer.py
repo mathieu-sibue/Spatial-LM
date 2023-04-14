@@ -18,7 +18,7 @@ def pretrain(opt, model, mydata):
     # logging_steps = len(mydata.train_dataset)  //opt.batch_size
     trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=opt.test_size)
 
-    training_args = TrainingArguments(v
+    training_args = TrainingArguments(
         output_dir = opt.output_dir,
         num_train_epochs = opt.epochs,
         learning_rate = opt.lr,
@@ -54,7 +54,7 @@ def train(opt, model, mydata):
     # logging_steps = len(mydata.train_dataset)  //opt.batch_size
     trainable_ds = mydata.trainable_ds
 
-    training_args = TrainingArguments(v
+    training_args = TrainingArguments(
         output_dir = opt.output_dir,
         num_train_epochs = opt.epochs,
         learning_rate = opt.lr,

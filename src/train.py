@@ -35,7 +35,7 @@ if __name__=='__main__':
     mydata = mydataset.setup(params)
 
     # section 3, get the model
-    # model = LMs.setup(params)
+    model = LMs.setup(params)
 
     # # section 5, train (finetune)
     # HFTrainer.train(params, model, mydata)

@@ -12,7 +12,7 @@ class RVLCDIP:
         self.tokenizer = AutoTokenizer.from_pretrained(opt.layoutlm_dir)
         assert isinstance(self.tokenizer, transformers.PreTrainedTokenizerFast) # get sub
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False) 
-        self.cpu_num = 64
+        self.cpu_num = opt.num_cpu
         # four maps
         dataset_list = []
         for i in range(10):
