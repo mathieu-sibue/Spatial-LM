@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 from transformers.modeling_outputs import MaskedLMOutput,TokenClassifierOutput
 from typing import List, Optional, Tuple, Union
-from transformers import AutoConfig, AutoModel, LayoutLMv3Model, AutoModelForTokenClassification, AutoModelForQuestionAnswering
+from transformers import AutoConfig, AutoModel, AutoModelForTokenClassification, AutoModelForQuestionAnswering
+from LMs.layoutlmv3 import LayoutLMv3Model
 from transformers.activations import gelu  # ACT2FN
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from transformers.modeling_utils import PreTrainedModel
