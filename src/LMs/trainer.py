@@ -9,10 +9,10 @@ import os
 import pickle
 from datetime import datetime
 from accelerate import Accelerator
-
+import evaluate
 
 from datasets import load_metric
-metric = load_metric("seqeval")
+metric = evaluate.load("seqeval")
 
 def finetune(opt,model, mydata):
     # 1 data loader

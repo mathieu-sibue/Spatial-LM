@@ -8,7 +8,7 @@ from transformers import TrainingArguments, Trainer
 from transformers.data.data_collator import default_data_collator
 import numpy as np
 from transformers import DataCollatorForLanguageModeling
-
+import evaluate
 
 def pretrain(opt, model, mydata):
     # mlm= True uses masked language model; otherwise, causal LM (NTP); 
@@ -66,7 +66,7 @@ def train(opt, model, mydata):
         push_to_hub = False,
         # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
         evaluation_strategy = "epoch",
-        save_strategy="epoch",
+        save_strategy="no",  # no, epoch, steps
         overwrite_output_dir=True,  # use only one dir
         # prediction_loss_only = True,
         # logging_dir='./logs',  
@@ -83,12 +83,32 @@ def train(opt, model, mydata):
         # tokenizer = mydata.tokenizer
     )
     trainer.train()
-    trainer.save_model(opt.save_path)
+
+# def compute_metrics(eval_preds):
+#     metric = evaluate.load("seqeval")
+#     logits, labels = eval_preds
+#     predictions = np.argmax(logits, axis=-1)
+#     # Remove ignored index (special tokens)
+#     true_predictions = [
+#         [str(p) for (p, l) in zip(prediction, label) if l != -100]
+#         for prediction, label in zip(predictions, labels)
+#     ]
+#     true_labels = [
+#         [str(l) for (p, l) in zip(prediction, label) if l != -100]
+#         for prediction, label in zip(predictions, labels)
+#     ]
+
+#     return metric.compute(predictions=true_predictions, references=true_labels)
 
 
 def compute_metrics(p,return_entity_level_metrics=False):
+    metric = evaluate.load("seqeval")
+
     predictions, labels = p
     predictions = np.argmax(predictions, axis=2)
+
+    # label_list = ['B-ANSWER', 'B-HEADER', 'B-QUESTION', 'I-ANSWER', 'I-HEADER', 'I-QUESTION', 'O']
+    label_list = ['B-MENU.CNT', 'B-MENU.DISCOUNTPRICE', 'B-MENU.ETC', 'B-MENU.ITEMSUBTOTAL', 'B-MENU.NM', 'B-MENU.NUM', 'B-MENU.PRICE', 'B-MENU.SUB_CNT', 'B-MENU.SUB_ETC', 'B-MENU.SUB_NM', 'B-MENU.SUB_PRICE', 'B-MENU.SUB_UNITPRICE', 'B-MENU.UNITPRICE', 'B-MENU.VATYN', 'B-SUB_TOTAL.DISCOUNT_PRICE', 'B-SUB_TOTAL.ETC', 'B-SUB_TOTAL.OTHERSVC_PRICE', 'B-SUB_TOTAL.SERVICE_PRICE', 'B-SUB_TOTAL.SUBTOTAL_PRICE', 'B-SUB_TOTAL.TAX_PRICE', 'B-TOTAL.CASHPRICE', 'B-TOTAL.CHANGEPRICE', 'B-TOTAL.CREDITCARDPRICE', 'B-TOTAL.EMONEYPRICE', 'B-TOTAL.MENUQTY_CNT', 'B-TOTAL.MENUTYPE_CNT', 'B-TOTAL.TOTAL_ETC', 'B-TOTAL.TOTAL_PRICE', 'B-VOID_MENU.NM', 'B-VOID_MENU.PRICE', 'I-MENU.CNT', 'I-MENU.DISCOUNTPRICE', 'I-MENU.ETC', 'I-MENU.NM', 'I-MENU.PRICE', 'I-MENU.SUB_ETC', 'I-MENU.SUB_NM', 'I-MENU.UNITPRICE', 'I-MENU.VATYN', 'I-SUB_TOTAL.DISCOUNT_PRICE', 'I-SUB_TOTAL.ETC', 'I-SUB_TOTAL.OTHERSVC_PRICE', 'I-SUB_TOTAL.SERVICE_PRICE', 'I-SUB_TOTAL.SUBTOTAL_PRICE', 'I-SUB_TOTAL.TAX_PRICE', 'I-TOTAL.CASHPRICE', 'I-TOTAL.CHANGEPRICE', 'I-TOTAL.CREDITCARDPRICE', 'I-TOTAL.EMONEYPRICE', 'I-TOTAL.MENUQTY_CNT', 'I-TOTAL.MENUTYPE_CNT', 'I-TOTAL.TOTAL_ETC', 'I-TOTAL.TOTAL_PRICE', 'I-VOID_MENU.NM']
 
     # Remove ignored index (special tokens)
     true_predictions = [
@@ -99,23 +119,14 @@ def compute_metrics(p,return_entity_level_metrics=False):
         [label_list[l] for (p, l) in zip(prediction, label) if l != -100]
         for prediction, label in zip(predictions, labels)
     ]
-
+    # print('true predicts: ',true_predictions)
+    # print('true labels: ',true_labels)
     results = metric.compute(predictions=true_predictions, references=true_labels)
-    if return_entity_level_metrics:
-        # Unpack nested dictionaries
-        final_results = {}
-        for key, value in results.items():
-            if isinstance(value, dict):
-                for n, v in value.items():
-                    final_results[f"{key}_{n}"] = v
-            else:
-                final_results[key] = value
-        return final_results
-    else:
-        return {
-            "precision": results["overall_precision"],
-            "recall": results["overall_recall"],
-            "f1": results["overall_f1"],
-            "accuracy": results["overall_accuracy"],
-        }
+
+    return {
+        "precision": results["overall_precision"],
+        "recall": results["overall_recall"],
+        "f1": results["overall_f1"],
+        "accuracy": results["overall_accuracy"],
+    }
 

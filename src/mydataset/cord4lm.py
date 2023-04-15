@@ -24,9 +24,12 @@ class CORD:
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False)    # wrap of featureExtract & tokenizer
 
         self.label_col_name = "ner_tags"
-        self.cpu_num = 8
+        self.cpu_num = opt.num_cpu
         # step 2.1: get raw ds (already normalized bbox, img object)
         raw_train, raw_test = self.get_raw_ds()
+
+        raw_train, raw_test = self.get_img_and_norm_ds(raw_train), self.get_img_and_norm_ds(raw_test)
+
         # step 2.2, get  labeled ds (get label list, and map label dataset)
         _,_, opt.label_list = self._get_label_map(raw_train)
         opt.num_labels = len(opt.label_list)    # 54; 27 pairs
@@ -36,13 +39,16 @@ class CORD:
         train_label_ds, test_label_ds = self.get_label_ds(raw_train), self.get_label_ds(raw_test)
 
         # step 3: prepare for getting trainable data (encode and define features)
+        
         trainable_train_ds, trainable_test_ds = self.get_preprocessed_ds(train_label_ds),self.get_preprocessed_ds(test_label_ds)
+        
         print(trainable_train_ds)
         # print(trainable_train_ds[0])
         self.trainable_ds = DatasetDict({
             "train" : trainable_train_ds , 
             "test" : trainable_test_ds 
         })
+
 
     def get_raw_ds(self):
         train = Dataset.from_generator(self.ds_generator, gen_kwargs={'base_dir':self.opt.cord_train})
@@ -80,30 +86,40 @@ class CORD:
                         tokens.append(w["text"])
                         block_ids.append(block_idx)
                         ner_tags.append("O")
-                        cur_line_bboxes.append(self._normalize_bbox(self._quad_to_box(w["quad"]), size))
+                        cur_line_bboxes.append(self._quad_to_box(w["quad"]))
                 else:
                     tokens.append(words[0]["text"])
                     block_ids.append(block_idx)
                     ner_tags.append("B-" + label.upper())
-                    cur_line_bboxes.append(self._normalize_bbox(self._quad_to_box(words[0]["quad"]), size))
+                    cur_line_bboxes.append(self._quad_to_box(words[0]["quad"]))
                     for w in words[1:]:
                         tokens.append(w["text"])
                         block_ids.append(block_idx)
                         ner_tags.append("I-" + label.upper())
-                        cur_line_bboxes.append(self._normalize_bbox(self._quad_to_box(w["quad"]), size))
+                        cur_line_bboxes.append(self._quad_to_box(w["quad"]))
                 cur_line_bboxes = self._get_line_bbox(cur_line_bboxes)  # shared boxes, token-wise
                 bboxes.extend(cur_line_bboxes)
                 block_idx += 1
 
             yield {"id": doc_idx, "tokens": tokens, "bboxes": bboxes, "ner_tags": ner_tags,
-                   "block_ids": block_ids, "image": image}
+                   "block_ids": block_ids, "image": image_path}
         # one_page_info = {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
+
+    def get_img_and_norm_ds(self,ds):
+        def _load_and_norm(sample):
+            # 1) load img obj
+            sample['images'],size = self._load_image(sample['image'])
+            # 2) normalize bboxes using the img size 
+            sample['bboxes'] = [self._normalize_bbox(bbox, size) for bbox in sample['bboxes']]
+            return sample
+        normed_ds = ds.map(_load_and_norm, num_proc=self.cpu_num) # load image objects
+        return normed_ds
 
 
     def get_preprocessed_ds(self,ds):
         def _preprocess(batch):
             # 1) encode words and imgs
-            encodings = self.processor(images=batch['image'],text=batch['tokens'], boxes=batch['bboxes'],
+            encodings = self.processor(images=batch['images'],text=batch['tokens'], boxes=batch['bboxes'],
                                        word_labels=batch['ner_tags'], truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
             # 2) add position_ids
             position_ids = []
@@ -165,6 +181,7 @@ class CORD:
         image = Image.open(image_path).convert("RGB")
         w, h = image.size
         return image, (w, h)
+
     def _normalize_bbox(self,bbox, size):
         return [
             int(1000 * bbox[0] / size[0]),

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers.modeling_outputs import MaskedLMOutput
+from transformers.modeling_outputs import MaskedLMOutput,TokenClassifierOutput
 from typing import List, Optional, Tuple, Union
 from transformers import AutoConfig, AutoModel, LayoutLMv3Model, AutoModelForTokenClassification, AutoModelForQuestionAnswering
 from transformers.activations import gelu  # ACT2FN
@@ -275,7 +275,7 @@ class SpatialLMForTokenclassifier(SpatialLMPreTrainedModel):
         pixel_values: Optional[torch.LongTensor] = None,
     ) -> Union[Tuple[torch.Tensor], MaskedLMOutput]:
 
-        outputs = self.spatial_lm_token_classifier(
+        outputs = self.spatial_lm(
             input_ids,
             bbox=bbox,
             attention_mask=attention_mask,

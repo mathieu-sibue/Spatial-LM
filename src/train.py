@@ -10,7 +10,7 @@ import pickle
 from utils.params import Params
 # from torch_geometric.transforms import NormalizeFeatures
 import mydataset
-from LMs import trainer
+from LMs import HFTrainer
 import LMs
 
 def parse_args(config_path):
@@ -38,7 +38,4 @@ if __name__=='__main__':
     model = LMs.setup(params)
 
     # # section 5, train (finetune)
-    # HFTrainer.train(params, model, mydata)
-
-
-    
+    HFTrainer.train(params, model, mydata)
