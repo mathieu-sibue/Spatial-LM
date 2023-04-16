@@ -10,7 +10,7 @@ import pickle
 from utils.params import Params
 # from torch_geometric.transforms import NormalizeFeatures
 # import pretrain_dataset
-from LMs import trainer, HFTrainer
+from LMs.HFTrainer import MyTrainer
 import LMs
 import mydataset
 
@@ -40,10 +40,11 @@ if __name__=='__main__':
     # model = LMs.setup(params)
 
     # section 4, data and saving path for output model
-    params.output_dir = '/home/ubuntu/air/vrdu/output/pretrain_rvl/test_base'
+    params.output_dir = '/home/ubuntu/air/vrdu/output/pretrain_rvl/test_large'
     mydata = mydataset.setup(params)
-    
+
     # section 5, pretrain
-    HFTrainer.pretrain(params, model, mydata)
+    mytrainer = MyTrainer(params)
+    mytrainer.pretrain(params, model, mydata)
 
 
