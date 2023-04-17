@@ -315,7 +315,7 @@ class SpatialLMForTokenclassifier(SpatialLMPreTrainedModel):
         return outputs
 
 
-class SpatialLMForSequenceClassification(LayoutLMv3PreTrainedModel):
+class SpatialLMForSequenceClassification(SpatialLMPreTrainedModel):
 
     def __init__(self, config):
         super().__init__(config)
@@ -337,7 +337,7 @@ class SpatialLMForSequenceClassification(LayoutLMv3PreTrainedModel):
         labels: Optional[torch.LongTensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = True,
         bbox: Optional[torch.LongTensor] = None,
         pixel_values: Optional[torch.LongTensor] = None,
     ) -> Union[Tuple, SequenceClassifierOutput]:
