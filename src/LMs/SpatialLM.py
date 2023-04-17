@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers.modeling_outputs import MaskedLMOutput,TokenClassifierOutput
+from transformers.modeling_outputs import MaskedLMOutput,TokenClassifierOutput, SequenceClassifierOutput
 from typing import List, Optional, Tuple, Union
 from transformers import AutoConfig, AutoModel, AutoModelForTokenClassification, AutoModelForQuestionAnswering
 from LMs.layoutlmv3 import LayoutLMv3Model
