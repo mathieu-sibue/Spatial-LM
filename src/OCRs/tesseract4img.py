@@ -49,18 +49,20 @@ def doc_to_segs(one_doc):
     return texts, bboxes, word_nums
 
 # prepare dataset dict 1.2: images to dataset
-def imgs_to_dataset_generator(img_paths):
-    dataset = Dataset.from_generator(image_to_dict, gen_kwargs={'img_paths': img_paths})
+def imgs_to_dataset_generator(img_paths, labels=None):
+    dataset = Dataset.from_generator(image_to_dict, gen_kwargs={'img_paths': img_paths, 'labels':labels})
     return dataset
 
 
 # prepare dataset dict 1.1: image to basic dict info
-def image_to_dict(img_paths, tbox_norm=False):
+def image_to_dict(img_paths, labels =None, tbox_norm=False):
     '''
     rtype: return one_doc, where the bbox and h/w are normalized to 1000*1000
     '''
-    for image_path in img_paths:
+    for idx, image_path in enumerate(img_paths):
         one_page_info = {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
+        if labels:
+            one_page_info['label'] = labels[idx]
 
         image, size = _load_image(image_path)
         myconfig = r'--psm 11 --oem 3'
