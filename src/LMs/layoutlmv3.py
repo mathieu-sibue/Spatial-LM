@@ -582,9 +582,14 @@ class LayoutLMv3Encoder(nn.Module):
         rel_pos = rel_pos.contiguous()
         return rel_pos
 
+    def _call_2d_spatial_attention(self,hidden_states,bbox):
+        pass
+
+
     def _cal_2d_pos_emb(self, hidden_states, bbox):
         position_coord_x = bbox[:, :, 0]
         position_coord_y = bbox[:, :, 3]
+
         rel_pos_x_2d_mat = position_coord_x.unsqueeze(-2) - position_coord_x.unsqueeze(-1)
         rel_pos_y_2d_mat = position_coord_y.unsqueeze(-2) - position_coord_y.unsqueeze(-1)
         rel_pos_x = self.relative_position_bucket(
@@ -604,6 +609,7 @@ class LayoutLMv3Encoder(nn.Module):
         rel_pos_x = rel_pos_x.contiguous()
         rel_pos_y = rel_pos_y.contiguous()
         rel_2d_pos = rel_pos_x + rel_pos_y
+
         return rel_2d_pos
 
     def forward(

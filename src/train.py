@@ -26,7 +26,8 @@ if __name__=='__main__':
     params.parse_config(args.config_file)
     params.config_file = args.config_file
 
-    params.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    # params.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    params.device = torch.device('cpu')
     print('Using device:', params.device)
 
     # section 2, objective function and output dim/ move to trainer
@@ -35,7 +36,7 @@ if __name__=='__main__':
     mydata = mydataset.setup(params)
 
     # section 3, get the model
-    model = LMs.setup(params)
+    model = LMs.setup(params).to(params.device)
 
     # # section 5, train (finetune)
     mytrainer = MyTrainer(params)
