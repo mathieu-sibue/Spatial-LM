@@ -769,7 +769,7 @@ class LayoutLMv3Encoder(nn.Module):
                         layer_head_mask,
                         output_attentions,
                         rel_pos=rel_pos,
-                        rel_2d_pos=None,
+                        rel_2d_pos=rel_2d_pos,
                     )
             hidden_states = layer_outputs[0]
             if output_attentions:
