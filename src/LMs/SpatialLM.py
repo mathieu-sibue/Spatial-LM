@@ -168,6 +168,7 @@ class SpatialLMForMaskedLM(SpatialLMPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = True,
         pixel_values: Optional[torch.LongTensor] = None,
+        spatial_matrix: Optional[torch.LongTensor] = None,
     ) -> Union[Tuple[torch.Tensor], MaskedLMOutput]:
 
         outputs = self.spatial_lm(
@@ -182,6 +183,7 @@ class SpatialLMForMaskedLM(SpatialLMPreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             pixel_values=pixel_values,
+            spatial_matrix = spatial_matrix, 
         )
 
         # get [B, S, D] (not pooled), and predict complete sequence
@@ -274,6 +276,7 @@ class SpatialLMForTokenclassifier(SpatialLMPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = True,
         pixel_values: Optional[torch.LongTensor] = None,
+        spatial_matrix: Optional[torch.LongTensor] = None,
     ) -> Union[Tuple[torch.Tensor], MaskedLMOutput]:
 
         outputs = self.spatial_lm(
@@ -288,6 +291,7 @@ class SpatialLMForTokenclassifier(SpatialLMPreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             pixel_values=pixel_values,
+            spatial_matrix=spatial_matrix,
         )
 
         input_shape = input_ids.size()
@@ -340,6 +344,8 @@ class SpatialLMForSequenceClassification(SpatialLMPreTrainedModel):
         return_dict: Optional[bool] = True,
         bbox: Optional[torch.LongTensor] = None,
         pixel_values: Optional[torch.LongTensor] = None,
+        spatial_matrix: Optional[torch.LongTensor] = None,
+
     ) -> Union[Tuple, SequenceClassifierOutput]:
 
         outputs = self.spatial_lm(
@@ -354,6 +360,7 @@ class SpatialLMForSequenceClassification(SpatialLMPreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             pixel_values=pixel_values,
+            spatial_matrix=spatial_matrix,
         )
         
         sequence_output = outputs[0][:, 0, :]   # CLS token from (B, S[0], D)

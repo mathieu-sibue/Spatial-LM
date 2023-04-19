@@ -24,6 +24,7 @@ import torch.nn.functional as F
 import torch.utils.checkpoint
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
+
 from transformers.activations import ACT2FN
 from transformers.modeling_outputs import (
     BaseModelOutput,
@@ -405,7 +406,7 @@ class LayoutLMv3SelfAttention(nn.Module):
             attention_scores += (rel_pos + rel_2d_pos) / math.sqrt(self.attention_head_size)
         elif self.has_relative_attention_bias:
             attention_scores += rel_pos / math.sqrt(self.attention_head_size)
-        elif self.has_spatial_attention_bias:
+        elif self.has_spatial_attention_bias and rel_2d_pos is not None:
             attention_scores += rel_2d_pos / math.sqrt(self.attention_head_size)
 
         if attention_mask is not None:
@@ -533,6 +534,14 @@ class LayoutLMv3Encoder(nn.Module):
         self.has_relative_attention_bias = config.has_relative_attention_bias
         self.has_spatial_attention_bias = config.has_spatial_attention_bias
 
+        self.linear_attention = nn.Sequential(nn.Linear(11,11),
+                                nn.ReLU(),
+                                nn.Linear(11,1)
+                                )
+
+        self.spatial_weight = nn.Parameter(torch.FloatTensor(torch.zeros(size=(9,1))))
+        self.spatial_bias = nn.Parameter(torch.FloatTensor(torch.zeros(size=(1,))))
+
         if self.has_relative_attention_bias:
             self.rel_pos_bins = config.rel_pos_bins
             self.max_rel_pos = config.max_rel_pos
@@ -582,11 +591,93 @@ class LayoutLMv3Encoder(nn.Module):
         rel_pos = rel_pos.contiguous()
         return rel_pos
 
-    def _call_2d_spatial_attention(self,hidden_states,bbox):
-        pass
+    def _rule_polar(self, rect_src : list, rect_dst : list) -> Tuple[int, int]:
+        """Compute distance and direction from src to dst bounding boxes
+        Args:
+            rect_src (list) : source rectangle coordinates
+            rect_dst (list) : destination rectangle coordinates
+        
+        Returns:
+            tuple (ints): distance and direction
+        """
+        # check relative position
+        left = (rect_dst[2] - rect_src[0]) <= 0 # left-top point
+        bottom = (rect_src[3] - rect_dst[1]) <= 0   # 
+        right = (rect_src[2] - rect_dst[0]) <= 0
+        top = (rect_dst[3] - rect_src[1]) <= 0
+        
+        vp_intersect = (rect_src[0] <= rect_dst[2] and rect_dst[0] <= rect_src[2]) # True if two rects "see" each other vertically, above or under
+        hp_intersect = (rect_src[1] <= rect_dst[3] and rect_dst[1] <= rect_src[3]) # True if two rects "see" each other horizontally, right or left
+        rect_intersect = vp_intersect and hp_intersect 
+
+        if rect_intersect:
+            return 0,0, 0
+        elif top and left:
+            a, b = abs(rect_dst[2] - rect_src[0]), abs(rect_dst[3] - rect_src[1])
+            return int(a),int(b), 4
+        elif left and bottom:
+            a, b = abs(rect_dst[2] - rect_src[0]), abs(rect_dst[1] - rect_src[3])
+            return int(a),int(b), 6
+        elif bottom and right:
+            a, b = abs(rect_dst[0] - rect_src[2]), abs(rect_dst[1] - rect_src[3])
+            return int(a),int(b),8
+        elif right and top:
+            a, b = abs(rect_dst[0] - rect_src[2]), abs(rect_dst[3] - rect_src[1])
+            return int(a),int(b), 2
+        elif left:
+            return int(abs(rect_src[0] - rect_dst[2])),0, 5
+        elif right:
+            return int(abs(rect_dst[0] - rect_src[2])),0, 1
+        elif bottom:
+            return 0, int(abs(rect_dst[1] - rect_src[3])), 7
+        elif top:
+            return 0, int(abs(rect_src[1] - rect_dst[3])), 3
+        else:
+            print('why the relative position is no where?')
+
+    # for each bboxs
+    def _fully_connected_matrix(self, bboxs):
+        directs = []
+        d1s,d2s = [],[]
+        for i in range(len(bboxs)):
+            for j in range(len(bboxs)):
+                box1, box2 = bboxs[i],bboxs[j]
+                d1,d2,direct = self._rule_polar(list(box1), list(box2))
+                # direct = angle //45 
+                directs.append(direct)
+                d1s.append(d1)
+                d2s.append(d2)
+        direct_vect = F.one_hot(torch.tensor(directs), num_classes = 9)
+        dist_vect = torch.tensor([[d1, d2] for d1,d2 in zip(d1s,d2s)])
+        nn_vects = torch.cat((direct_vect, dist_vect), -1)
+        return nn_vects
+
+    def _cal_2d_spatial_attention(self,spatial_matrix,bbox,device):
+        bshape = bbox.size() # [B, S, D] => [2, 709, 4]
+        # step 1: generate [B, N*N, 11]
+        vectorized_nn = spatial_matrix.view(bshape[0],-1,11)
+        # vectorized_nn = torch.tensor([self._fully_connected_matrix(bch_bbox) for bch_bbox in bbox ])
+        # print('size1:', vectorized_nn[0][512:520])   # [2, 262144, 11]
+        # step2: update weights
+        # scalarized_nn = vectorized_nn @ self.spatial_weight + self.spatial_bias
+        scalarized_nn = self.linear_attention(vectorized_nn)
+        # print('size2:', scalarized_nn[0][:2])   # [2, 262144, 1]
+
+        # step3: re-shape
+        scalarized_nn = scalarized_nn.squeeze(-1).view(bshape[0], 512, 512)
+        # scalarized_nn = F.pad(input=scalarized_nn, pad=(0, 1, 1, 1), mode='constant', value=0)
+        target = torch.zeros([bshape[0],bshape[1],bshape[1]], device=device)
+        target[:, :512, :512] = scalarized_nn
+        # print('size3:', scalarized_nn[0][0])   # [2, 709, 709]
+        
+        # step4: repeatly copy into 12 heads
+        final_matrix = target.unsqueeze(1).repeat(1,12,1,1) 
+        # print('size4:', final_matrix.size())    # [2, 12, 709, 709]
+        return final_matrix
 
 
     def _cal_2d_pos_emb(self, hidden_states, bbox):
+
         position_coord_x = bbox[:, :, 0]
         position_coord_y = bbox[:, :, 3]
 
@@ -624,13 +715,16 @@ class LayoutLMv3Encoder(nn.Module):
         position_ids=None,
         patch_height=None,
         patch_width=None,
+        spatial_matrix = None,
+        device = None,
+        
     ):
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
 
         rel_pos = self._cal_1d_pos_emb(hidden_states, position_ids) if self.has_relative_attention_bias else None
-        rel_2d_pos = self._cal_2d_pos_emb(hidden_states, bbox) if self.has_spatial_attention_bias else None
-
+        # rel_2d_pos = self._cal_2d_pos_emb(hidden_states, bbox) if self.has_spatial_attention_bias else None
+        rel_2d_pos = self._cal_2d_spatial_attention(spatial_matrix,bbox, device)
         for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
@@ -659,15 +753,24 @@ class LayoutLMv3Encoder(nn.Module):
                     rel_2d_pos,
                 )
             else:
-                layer_outputs = layer_module(
-                    hidden_states,
-                    attention_mask,
-                    layer_head_mask,
-                    output_attentions,
-                    rel_pos=rel_pos,
-                    rel_2d_pos=rel_2d_pos,
-                )
-
+                if i==0:
+                    layer_outputs = layer_module(
+                        hidden_states,
+                        attention_mask,
+                        layer_head_mask,
+                        output_attentions,
+                        rel_pos=rel_pos,
+                        rel_2d_pos=rel_2d_pos,
+                    )
+                else:
+                    layer_outputs = layer_module(
+                        hidden_states,
+                        attention_mask,
+                        layer_head_mask,
+                        output_attentions,
+                        rel_pos=rel_pos,
+                        rel_2d_pos=None,
+                    )
             hidden_states = layer_outputs[0]
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
@@ -835,6 +938,7 @@ class LayoutLMv3Model(LayoutLMv3PreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        spatial_matrix: Optional[torch.LongTensor] = None,
     ) -> Union[Tuple, BaseModelOutput]:
         r"""
         Returns:
@@ -959,6 +1063,8 @@ class LayoutLMv3Model(LayoutLMv3PreTrainedModel):
             return_dict=return_dict,
             patch_height=patch_height,
             patch_width=patch_width,
+            spatial_matrix=spatial_matrix,
+            device = device,
         )
 
         sequence_output = encoder_outputs[0]

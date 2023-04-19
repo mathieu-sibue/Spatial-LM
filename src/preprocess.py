@@ -115,6 +115,20 @@ def get_imgs_list(dir):
     files = [os.path.join(dir,file) for file in files]
     return files
 
+def get_imgs_dfs(dir, suffix = 'tif'):
+    res = []
+    files = os.listdir(dir)
+    for file in files:
+        file_path = os.path.join(dir,file)
+
+        if os.path.isdir(file_path):
+            sub_res = get_imgs_dfs(file_path, suffix)
+            res += sub_res
+        elif file.endswith(suffix):
+            res.append(file_path)
+    return res
+
+
 # step2: shuffle and split into 5 subsets
 def _split(input_list, n):
     k, m = divmod(len(input_list), n)
@@ -145,10 +159,29 @@ def _split(input_list, n):
 
 
 if __name__ == "__main__":
+    dir = '/home/ubuntu/air/vrdu/datasets/images'
+    # res = get_imgs_dfs(dir, '.tif')
+    # print(len(res))
+    # print(res[:10])
+
+
     for split in ['train','test','val']:
         files,labels = get_img_label_pairs(split)
-        mydataset = tesseract4img.imgs_to_dataset_generator(files,labels)
-        saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_rvl_'+split+'_dataset.hf'
-        mydataset.save_to_disk(saveto)
+        print(split, ' to be generated file num:',len(files))
 
-        print(mydataset)
+        if split=='train':
+            file_part5, label_part5 = _split(files,8), _split(labels,8)
+
+            for i, (sub_files, sub_labels) in enumerate(zip(file_part5, label_part5)):
+                print(split, i, ' to be generated file num:',len(sub_files))
+
+                mydataset = tesseract4img.imgs_to_dataset_generator(sub_files,sub_labels)
+                saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_rvl_'+split+str(i)+'_dataset.hf'
+                mydataset.save_to_disk(saveto)
+                print(mydataset)
+        else:
+            mydataset = tesseract4img.imgs_to_dataset_generator(files,labels)
+            saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_rvl_'+split+'_dataset.hf'
+            mydataset.save_to_disk(saveto)
+
+            print(mydataset)
