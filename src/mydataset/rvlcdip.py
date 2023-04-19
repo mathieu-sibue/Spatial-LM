@@ -4,6 +4,8 @@ from transformers import LayoutLMv3TokenizerFast, AutoTokenizer, AutoProcessor, 
 from PIL import Image
 from datasets import Dataset, concatenate_datasets
 import transformers
+from mydataset import myds_util
+
 
 class RVLCDIP:
     def __init__(self,opt):
