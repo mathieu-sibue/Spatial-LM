@@ -17,7 +17,7 @@ class RVLCDIP:
         self.cpu_num = opt.num_cpu
         # four maps
         dataset_list = []
-        for i in range(10):
+        for i in range(1):
             ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl'+str(i)+'_dataset.hf'
             self.raw_ds = self.get_raw_ds(ds_path)
             self.processed_ds = self.get_preprocessed_ds(self.raw_ds)

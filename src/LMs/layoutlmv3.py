@@ -539,6 +539,10 @@ class LayoutLMv3Encoder(nn.Module):
                                 nn.Linear(11,1)
                                 )
 
+        self.sp_query = nn.Linear(5632, 512)    # 512*11 -> 512
+        self.sp_key = nn.Linear(5632, 512)
+
+
         self.spatial_weight = nn.Parameter(torch.FloatTensor(torch.zeros(size=(9,1))))
         self.spatial_bias = nn.Parameter(torch.FloatTensor(torch.zeros(size=(1,))))
 
@@ -652,6 +656,25 @@ class LayoutLMv3Encoder(nn.Module):
         nn_vects = torch.cat((direct_vect, dist_vect), -1)
         return nn_vects
 
+
+    def _cal_2d_spatial_sa(self, spatial_matrix, bbox, device):
+        bshape = bbox.size() # [B, S, D] => [2, 709, 4]
+        vectorized_nn = spatial_matrix.view(bshape[0],512,-1)   # [2, 512, 512*11]
+
+        queries = self.sp_query(vectorized_nn)
+        keys = self.sp_key(vectorized_nn)
+        scores = torch.bmm(queries,keys.transpose(1,2)) # [2, 512, 512]
+
+        target = torch.zeros([bshape[0],bshape[1],bshape[1]], device=device)
+        target[:, :512, :512] = scores
+        # print('size3:', scalarized_nn[0][0])   # [2, 709, 709]
+        
+        # step4: repeatly copy into 12 heads
+        final_matrix = target.unsqueeze(1).repeat(1,12,1,1) 
+        # print('size4:', final_matrix.size())    # [2, 12, 709, 709]
+        return final_matrix
+
+
     def _cal_2d_spatial_attention(self,spatial_matrix,bbox,device):
         bshape = bbox.size() # [B, S, D] => [2, 709, 4]
         # step 1: generate [B, N*N, 11]
@@ -724,7 +747,7 @@ class LayoutLMv3Encoder(nn.Module):
 
         rel_pos = self._cal_1d_pos_emb(hidden_states, position_ids) if self.has_relative_attention_bias else None
         # rel_2d_pos = self._cal_2d_pos_emb(hidden_states, bbox) if self.has_spatial_attention_bias else None
-        rel_2d_pos = self._cal_2d_spatial_attention(spatial_matrix,bbox, device)
+        rel_2d_pos = self._cal_2d_spatial_sa(spatial_matrix,bbox, device)
         for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)

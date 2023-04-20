@@ -64,6 +64,7 @@ class FUNSD:
             # print('---doc id:---',doc_idx)
             tokens = []
             bboxes = []
+            tboxes = []
             ner_tags = []
             block_ids = []
 
@@ -87,22 +88,28 @@ class FUNSD:
                         tokens.append(w["text"])
                         block_ids.append(block_idx)
                         ner_tags.append("O")
-                        cur_line_bboxes.append(self._normalize_bbox(w["box"], size))
+                        norm_tbox = self._normalize_bbox(w["box"], size)
+                        tboxes.append(norm_tbox)
+                        cur_line_bboxes.append(norm_tbox)
                 else:
                     tokens.append(words[0]["text"])
                     block_ids.append(block_idx)
                     ner_tags.append("B-" + label.upper())
-                    cur_line_bboxes.append(self._normalize_bbox(words[0]["box"], size))
+                    norm_tbox = self._normalize_bbox(words[0["box"], size)
+                    tboxes.append(norm_tbox)
+                    cur_line_bboxes.append(norm_tbox)
                     for w in words[1:]:
                         tokens.append(w["text"])
                         block_ids.append(block_idx)
                         ner_tags.append("I-" + label.upper())
-                        cur_line_bboxes.append(self._normalize_bbox(w["box"], size))
+                        norm_tbox = self._normalize_bbox(w["box"], size)
+                        tboxes.append(norm_tbox)
+                        cur_line_bboxes.append(norm_tbox)
                 cur_line_bboxes = self._get_line_bbox(cur_line_bboxes)  # shared boxes, token-wise
                 bboxes.extend(cur_line_bboxes)
                 block_idx += 1
 
-            yield {"id": doc_idx, "tokens": tokens, "bboxes": bboxes, "ner_tags": ner_tags,
+            yield {"id": doc_idx, "tokens": tokens,"bboxes": bboxes, "ner_tags": ner_tags,
                    "block_ids": block_ids, "image": image}
         # one_page_info = {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
 
