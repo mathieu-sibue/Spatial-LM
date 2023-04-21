@@ -5,6 +5,7 @@ import os
 import json
 import transformers
 from PIL import Image
+from mydataset import myds_util
 
 class CORD:
     def __init__(self,opt) -> None:    
@@ -128,6 +129,15 @@ class CORD:
                 rel_pos = self._get_rel_pos(word_ids, block_ids)
                 position_ids.append(rel_pos)
             encodings['position_ids'] = position_ids
+
+            # 3) add spatial attention
+            spatial_matrix = []
+            for i, bb in enumerate(encodings['bbox']):
+                word_ids = encodings.word_ids(i)
+                sm = myds_util._fully_spatial_matrix(bb, word_ids)
+                spatial_matrix.append(sm)
+            encodings['spatial_matrix'] = spatial_matrix
+            
             return encodings
         
         features = Features({
@@ -136,6 +146,7 @@ class CORD:
             'position_ids': Sequence(feature=Value(dtype='int64')),
             'attention_mask': Sequence(Value(dtype='int64')),
             'bbox': Array2D(dtype="int64", shape=(512, 4)),
+            'spatial_matrix': Array3D(dtype='float32', shape=(512, 512, 11)),     # 
             'labels': Sequence(feature=Value(dtype='int64')),
         })
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 

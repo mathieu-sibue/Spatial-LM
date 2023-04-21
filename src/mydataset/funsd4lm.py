@@ -95,7 +95,7 @@ class FUNSD:
                     tokens.append(words[0]["text"])
                     block_ids.append(block_idx)
                     ner_tags.append("B-" + label.upper())
-                    norm_tbox = self._normalize_bbox(words[0["box"], size)
+                    norm_tbox = self._normalize_bbox(words[0]["box"], size)
                     tboxes.append(norm_tbox)
                     cur_line_bboxes.append(norm_tbox)
                     for w in words[1:]:

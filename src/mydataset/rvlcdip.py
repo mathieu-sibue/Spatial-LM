@@ -19,10 +19,9 @@ class RVLCDIP:
         dataset_list = []
         for i in range(1):
             ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl'+str(i)+'_dataset.hf'
-            self.raw_ds = self.get_raw_ds(ds_path)
-            self.processed_ds = self.get_preprocessed_ds(self.raw_ds)
-            temp_ds = self.get_label_define_features(self.processed_ds)
-            dataset_list.append(temp_ds)
+            raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
+            processed_ds = self.get_preprocessed_ds(raw_ds) # get trainable ds
+            dataset_list.append(processed_ds)
         self.trainable_ds = concatenate_datasets(dataset_list)
 
     # load raw dataset (including image object)
@@ -44,6 +43,15 @@ class RVLCDIP:
 
     # overall preprocessing
     def get_preprocessed_ds(self,ds):
+        features = Features({
+                'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
+                'input_ids': Sequence(feature=Value(dtype='int64')),
+                'position_ids': Sequence(feature=Value(dtype='int64')),
+                'attention_mask': Sequence(Value(dtype='int64')),
+                'bbox': Array2D(dtype="int64", shape=(512, 4)),
+                'spatial_matrix': Array3D(dtype='float32', shape=(512, 512, 11)),     # 
+                'labels': Sequence(feature=Value(dtype='int64')),
+                })
         def _preprocess(batch):
             # 1) encode words and imgs
             encodings = self.processor(images=batch['images'],text=batch['tokens'], boxes=batch['bboxes'],truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
@@ -61,29 +69,16 @@ class RVLCDIP:
                 sm = myds_util._fully_spatial_matrix(bb, word_ids)
                 spatial_matrix.append(sm)
             encodings['spatial_matrix'] = spatial_matrix
+            # 4) copy labels
+            encodings['labels'] = encodings['input_ids'].copy()
 
             return encodings
 
         processed_ds = ds.map(_preprocess,
-            batched=True, num_proc=self.cpu_num, remove_columns=['tokens', 'bboxes','block_ids','images','image'])
+            batched=True, num_proc=self.cpu_num, remove_columns=ds.column_names).with_format("torch")
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'pixel_values']
         return processed_ds
 
-
-    def get_label_define_features(self, ds):
-        features = Features({
-                'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
-                'input_ids': Sequence(feature=Value(dtype='int64')),
-                'position_ids': Sequence(feature=Value(dtype='int64')),
-                'attention_mask': Sequence(Value(dtype='int64')),
-                'bbox': Array2D(dtype="int64", shape=(512, 4)),
-                'spatial_matrix': Array3D(dtype='float32', shape=(512, 512, 11)),     # 
-                'labels': Sequence(feature=Value(dtype='int64')),
-                })
-        trainable_ds = ds.map(lambda example: {"labels": example['input_ids'].copy()}, num_proc=self.cpu_num,
-            features = features).with_format("torch")
-
-        return trainable_ds
 
     def _load_image(self,image_path):
         image = Image.open(image_path).convert("RGB")

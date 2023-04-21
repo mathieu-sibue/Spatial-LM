@@ -49,6 +49,8 @@ def _rule_polar(rect_src : list, rect_dst : list) -> Tuple[int, int]:
 # for each bboxs
 def _fully_spatial_matrix(bboxs, word_ids):
     spatial_matrix = []
+    look_up = {}
+    mirror_dict = {0:0, 1:5, 2:6, 3:7, 4:8, 5:1, 6:2, 7:3, 8:4}
     for i in range(len(bboxs)):
         rows = []
         for j in range(len(bboxs)):
@@ -56,13 +58,19 @@ def _fully_spatial_matrix(bboxs, word_ids):
                 rows.append([0]*11)
             else:
                 box1, box2 = bboxs[i],bboxs[j]
-                d1,d2,direct = _rule_polar(box1,box2)
+                if str((box1,box2)) in look_up.keys():
+                    d1,d2,direct = look_up[str((box1,box2))]
+                else:
+                    d1,d2,direct = _rule_polar(box1,box2)
                 # direct = angle //45 
                 vect11 = [0]*9  # len = 9
                 vect11[direct]=1    # len = 9
                 vect11.append(1.0/(d1+1))   # len = 10
                 vect11.append(1.0/(d2+1))   # len = 11
                 rows.append(vect11)
+                # put to dict
+                look_up[str((box1,box2))] = d1,d2,direct
+                look_up[str((box2,box1))] = d1,d2,mirror_dict[direct]
         spatial_matrix.append(rows)
         # print(spatial_matrix)
 

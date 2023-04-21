@@ -541,7 +541,12 @@ class LayoutLMv3Encoder(nn.Module):
 
         self.sp_query = nn.Linear(5632, 512)    # 512*11 -> 512
         self.sp_key = nn.Linear(5632, 512)
+        self.sp_value = nn.Linear(5632,512)
+        self.softmax = nn.Softmax(dim=2)
 
+        self.sp_query_linear= nn.Linear(512,512)
+        self.sp_key_linear= nn.Linear(512,512)
+        self.sp_value_linear= nn.Linear(512,512)
 
         self.spatial_weight = nn.Parameter(torch.FloatTensor(torch.zeros(size=(9,1))))
         self.spatial_bias = nn.Parameter(torch.FloatTensor(torch.zeros(size=(1,))))
@@ -659,11 +664,19 @@ class LayoutLMv3Encoder(nn.Module):
 
     def _cal_2d_spatial_sa(self, spatial_matrix, bbox, device):
         bshape = bbox.size() # [B, S, D] => [2, 709, 4]
+
+        # flat version
         vectorized_nn = spatial_matrix.view(bshape[0],512,-1)   # [2, 512, 512*11]
 
+        # linear version
+        # vectorized_nn = spatial_matrix.view(bshape[0],-1,11)
+        # scalarized_nn = self.linear_attention(vectorized_nn)    # [2, 262144, 1]
+        # scalarized_nn = scalarized_nn.squeeze(-1).view(bshape[0], 512, 512) # 512
+        
         queries = self.sp_query(vectorized_nn)
         keys = self.sp_key(vectorized_nn)
-        scores = torch.bmm(queries,keys.transpose(1,2)) # [2, 512, 512]
+
+        scores = torch.bmm(queries,keys.transpose(1,2))
 
         target = torch.zeros([bshape[0],bshape[1],bshape[1]], device=device)
         target[:, :512, :512] = scores
@@ -740,14 +753,14 @@ class LayoutLMv3Encoder(nn.Module):
         patch_width=None,
         spatial_matrix = None,
         device = None,
-        
     ):
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
 
         rel_pos = self._cal_1d_pos_emb(hidden_states, position_ids) if self.has_relative_attention_bias else None
-        # rel_2d_pos = self._cal_2d_pos_emb(hidden_states, bbox) if self.has_spatial_attention_bias else None
-        rel_2d_pos = self._cal_2d_spatial_sa(spatial_matrix,bbox, device)
+        rel_2d_pos = self._cal_2d_pos_emb(hidden_states, bbox) if self.has_spatial_attention_bias else None
+        # rel_2d_pos = self._cal_2d_spatial_sa(spatial_matrix,bbox, device)
+        # rel_2d_pos = self._cal_2d_spatial_attention(spatial_matrix, bbox, device)
         for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
@@ -776,24 +789,14 @@ class LayoutLMv3Encoder(nn.Module):
                     rel_2d_pos,
                 )
             else:
-                if i==0:
-                    layer_outputs = layer_module(
-                        hidden_states,
-                        attention_mask,
-                        layer_head_mask,
-                        output_attentions,
-                        rel_pos=rel_pos,
-                        rel_2d_pos=rel_2d_pos,
-                    )
-                else:
-                    layer_outputs = layer_module(
-                        hidden_states,
-                        attention_mask,
-                        layer_head_mask,
-                        output_attentions,
-                        rel_pos=rel_pos,
-                        rel_2d_pos=rel_2d_pos,
-                    )
+                layer_outputs = layer_module(
+                    hidden_states,
+                    attention_mask,
+                    layer_head_mask,
+                    output_attentions,
+                    rel_pos=rel_pos,
+                    rel_2d_pos=rel_2d_pos,
+                )
             hidden_states = layer_outputs[0]
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
