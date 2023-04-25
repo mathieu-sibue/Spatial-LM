@@ -139,7 +139,7 @@ class CORD:
             encodings['spatial_matrix'] = spatial_matrix
             
             return encodings
-        
+
         features = Features({
             'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
             'input_ids': Sequence(feature=Value(dtype='int64')),

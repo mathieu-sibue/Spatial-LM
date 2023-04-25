@@ -10,6 +10,8 @@ def setup(opt):
         from mydataset.cord4lm import CORD as MyData
     elif opt.dataset_name.lower() == 'rvl':
         from mydataset.rvl import RVL as MyData
+    elif opt.dataset_name.lower() == 'sorie':
+        from mydataset.sorie import SORIE as MyData
 
     else:
         raise Exception('dataset not supported:{}'.format(opt.dataset_name))

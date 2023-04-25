@@ -70,7 +70,7 @@ class MyTrainer:
             push_to_hub = False,
             # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
             evaluation_strategy = "epoch",
-            save_strategy="no",  # no, epoch, steps
+            save_strategy="epoch",  # no, epoch, steps
             overwrite_output_dir=True,  # use only one dir
             # prediction_loss_only = True,
             # logging_dir='./logs',  
@@ -81,12 +81,14 @@ class MyTrainer:
             args = training_args,
             train_dataset = trainable_ds['train'],
             eval_dataset = trainable_ds['test'],
-            compute_metrics = self.compute_metrics,
+            compute_metrics = self.acc_and_f1,
             # data_collator = data_collator,
             # config = model.config,
             # tokenizer = mydata.tokenizer
         )
         trainer.train()
+        if bool(self.opt.save_model):
+            trainer.save_model(opt.save_path)
 
     # def compute_metrics(eval_preds):
     #     metric = evaluate.load("seqeval")
@@ -105,17 +107,33 @@ class MyTrainer:
     #     return metric.compute(predictions=true_predictions, references=true_labels)
 
 
+    def acc_and_f1(self, p):
+        def simple_accuracy(preds, labels):
+            return (preds == labels).mean().item()
+
+        preds, labels = p
+
+        preds = np.argmax(preds, axis=-1)
+        acc = simple_accuracy(preds, labels)
+        # f1 = f1_score(y_true=labels, y_pred=preds).item()
+        return {
+            "accuracy": acc,
+            # "f1": f1,
+        }
+
     def compute_metrics(self, p):
         metric = evaluate.load("seqeval")
 
         predictions, labels = p
-        predictions = np.argmax(predictions, axis=2)
+        predictions = np.argmax(predictions, axis=-1)
 
-        if self.opt.dataset_name == 'funsd':
-            label_list = ['B-ANSWER', 'B-HEADER', 'B-QUESTION', 'I-ANSWER', 'I-HEADER', 'I-QUESTION', 'O']
-        elif self.opt.dataset_name == 'cord':
-            label_list = ['B-MENU.CNT', 'B-MENU.DISCOUNTPRICE', 'B-MENU.ETC', 'B-MENU.ITEMSUBTOTAL', 'B-MENU.NM', 'B-MENU.NUM', 'B-MENU.PRICE', 'B-MENU.SUB_CNT', 'B-MENU.SUB_ETC', 'B-MENU.SUB_NM', 'B-MENU.SUB_PRICE', 'B-MENU.SUB_UNITPRICE', 'B-MENU.UNITPRICE', 'B-MENU.VATYN', 'B-SUB_TOTAL.DISCOUNT_PRICE', 'B-SUB_TOTAL.ETC', 'B-SUB_TOTAL.OTHERSVC_PRICE', 'B-SUB_TOTAL.SERVICE_PRICE', 'B-SUB_TOTAL.SUBTOTAL_PRICE', 'B-SUB_TOTAL.TAX_PRICE', 'B-TOTAL.CASHPRICE', 'B-TOTAL.CHANGEPRICE', 'B-TOTAL.CREDITCARDPRICE', 'B-TOTAL.EMONEYPRICE', 'B-TOTAL.MENUQTY_CNT', 'B-TOTAL.MENUTYPE_CNT', 'B-TOTAL.TOTAL_ETC', 'B-TOTAL.TOTAL_PRICE', 'B-VOID_MENU.NM', 'B-VOID_MENU.PRICE', 'I-MENU.CNT', 'I-MENU.DISCOUNTPRICE', 'I-MENU.ETC', 'I-MENU.NM', 'I-MENU.PRICE', 'I-MENU.SUB_ETC', 'I-MENU.SUB_NM', 'I-MENU.UNITPRICE', 'I-MENU.VATYN', 'I-SUB_TOTAL.DISCOUNT_PRICE', 'I-SUB_TOTAL.ETC', 'I-SUB_TOTAL.OTHERSVC_PRICE', 'I-SUB_TOTAL.SERVICE_PRICE', 'I-SUB_TOTAL.SUBTOTAL_PRICE', 'I-SUB_TOTAL.TAX_PRICE', 'I-TOTAL.CASHPRICE', 'I-TOTAL.CHANGEPRICE', 'I-TOTAL.CREDITCARDPRICE', 'I-TOTAL.EMONEYPRICE', 'I-TOTAL.MENUQTY_CNT', 'I-TOTAL.MENUTYPE_CNT', 'I-TOTAL.TOTAL_ETC', 'I-TOTAL.TOTAL_PRICE', 'I-VOID_MENU.NM']
-
+        # if self.opt.dataset_name == 'funsd':
+        #     label_list = ['B-ANSWER', 'B-HEADER', 'B-QUESTION', 'I-ANSWER', 'I-HEADER', 'I-QUESTION', 'O']
+        # elif self.opt.dataset_name == 'cord':
+        #     label_list = ['B-MENU.CNT', 'B-MENU.DISCOUNTPRICE', 'B-MENU.ETC', 'B-MENU.ITEMSUBTOTAL', 'B-MENU.NM', 'B-MENU.NUM', 'B-MENU.PRICE', 'B-MENU.SUB_CNT', 'B-MENU.SUB_ETC', 'B-MENU.SUB_NM', 'B-MENU.SUB_PRICE', 'B-MENU.SUB_UNITPRICE', 'B-MENU.UNITPRICE', 'B-MENU.VATYN', 'B-SUB_TOTAL.DISCOUNT_PRICE', 'B-SUB_TOTAL.ETC', 'B-SUB_TOTAL.OTHERSVC_PRICE', 'B-SUB_TOTAL.SERVICE_PRICE', 'B-SUB_TOTAL.SUBTOTAL_PRICE', 'B-SUB_TOTAL.TAX_PRICE', 'B-TOTAL.CASHPRICE', 'B-TOTAL.CHANGEPRICE', 'B-TOTAL.CREDITCARDPRICE', 'B-TOTAL.EMONEYPRICE', 'B-TOTAL.MENUQTY_CNT', 'B-TOTAL.MENUTYPE_CNT', 'B-TOTAL.TOTAL_ETC', 'B-TOTAL.TOTAL_PRICE', 'B-VOID_MENU.NM', 'B-VOID_MENU.PRICE', 'I-MENU.CNT', 'I-MENU.DISCOUNTPRICE', 'I-MENU.ETC', 'I-MENU.NM', 'I-MENU.PRICE', 'I-MENU.SUB_ETC', 'I-MENU.SUB_NM', 'I-MENU.UNITPRICE', 'I-MENU.VATYN', 'I-SUB_TOTAL.DISCOUNT_PRICE', 'I-SUB_TOTAL.ETC', 'I-SUB_TOTAL.OTHERSVC_PRICE', 'I-SUB_TOTAL.SERVICE_PRICE', 'I-SUB_TOTAL.SUBTOTAL_PRICE', 'I-SUB_TOTAL.TAX_PRICE', 'I-TOTAL.CASHPRICE', 'I-TOTAL.CHANGEPRICE', 'I-TOTAL.CREDITCARDPRICE', 'I-TOTAL.EMONEYPRICE', 'I-TOTAL.MENUQTY_CNT', 'I-TOTAL.MENUTYPE_CNT', 'I-TOTAL.TOTAL_ETC', 'I-TOTAL.TOTAL_PRICE', 'I-VOID_MENU.NM']
+        # elif self.opt.dataset_name == 'sorie':
+        label_list = self.opt.label_list
+        
         # Remove ignored index (special tokens)
         true_predictions = [
             [label_list[p] for (p, l) in zip(prediction, label) if l != -100]

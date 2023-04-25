@@ -1,4 +1,4 @@
-from datasets import load_dataset ,Features, Sequence, Value, Array2D, Array3D, Dataset, DatasetDict
+from datasets import load_from_disk, load_dataset ,Features, Sequence, Value, Array2D, Array3D, Dataset, DatasetDict
 from datasets.features import ClassLabel
 from transformers import AutoProcessor, AutoTokenizer, AutoConfig
 import os
@@ -52,7 +52,7 @@ class RVL:
 
         # 1 load raw data
         raw_ds = load_from_disk(ds_path) # {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
-        # raw_ds = Dataset.from_dict(raw_ds[:500])    # obtain subset for experiment/debugging use
+        # raw_ds = Dataset.from_dict(raw_ds[:300])    # obtain subset for experiment/debugging use
         # 2 load img obj and norm bboxes 
         ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes']) # load image objects
 
@@ -71,8 +71,8 @@ class RVL:
                 rel_pos = self._get_rel_pos(word_ids, block_ids)
                 position_ids.append(rel_pos)
             encodings['position_ids'] = position_ids
-            # 3) add labels
-            encodings['labels'] = ds['label']
+            # 3) add labels separately for sequence classification
+            encodings['labels'] = batch['label']
             return encodings
         
         features = Features({
@@ -81,7 +81,8 @@ class RVL:
             'position_ids': Sequence(feature=Value(dtype='int64')),
             'attention_mask': Sequence(Value(dtype='int64')),
             'bbox': Array2D(dtype="int64", shape=(512, 4)),
-            'labels': Sequence(feature=Value(dtype='int64')),
+            'labels': Value(dtype='int64'),
+            # 'labels': self.class_label, # this is sequence classification, so only value!
         })
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
@@ -94,23 +95,27 @@ class RVL:
 
     def get_label_ds(self,ds):
         label_ds = ds.cast_column('label', self.class_label)
+        # def map_label2id(sample):
+        #     sample['label'] = self.class_label.str2int(sample['label'])
+        #     return sample
+        # label_ds = ds.map(map_label2id, num_proc=self.cpu_num)
         return label_ds
 
 
     # get label list
     def _get_label_map(self,ds):
-        features = ds.features
-        column_names = ds.column_names
-        if isinstance(features['label'].feature, ClassLabel):
-            label_list = features['label'].feature.names
-            # No need to convert the labels since they are already ints.
-            id2label = {k: v for k,v in enumerate(label_list)}
-            label2id = {v: k for k,v in enumerate(label_list)}
-        else:
-            label_list = list(set(ds['label']))   # this invokes another function
-            label_list = label_list.sort()
-            id2label = {k: v for k,v in enumerate(label_list)}
-            label2id = {v: k for k,v in enumerate(label_list)}
+        # features = ds.features
+        # column_names = ds.column_names
+        # if isinstance(features['label'].feature, ClassLabel):
+        #     label_list = features['label'].feature.names
+        #     # No need to convert the labels since they are already ints.
+        #     id2label = {k: v for k,v in enumerate(label_list)}
+        #     label2id = {v: k for k,v in enumerate(label_list)}
+        # else:
+        label_list = list(set(ds['label']))   # this invokes another function
+        label_list.sort()
+        id2label = {k: v for k,v in enumerate(label_list)}
+        label2id = {v: k for k,v in enumerate(label_list)}
         return id2label, label2id, label_list
 
     def _load_image(self,image_path):

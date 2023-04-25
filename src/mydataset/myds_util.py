@@ -47,10 +47,13 @@ def _rule_polar(rect_src : list, rect_dst : list) -> Tuple[int, int]:
         print('why the relative position is no where?')
 
 # for each bboxs
+
+mirror_dict = {0:0, 1:5, 2:6, 3:7, 4:8, 5:1, 6:2, 7:3, 8:4}
+
 def _fully_spatial_matrix(bboxs, word_ids):
     spatial_matrix = []
     look_up = {}
-    mirror_dict = {0:0, 1:5, 2:6, 3:7, 4:8, 5:1, 6:2, 7:3, 8:4}
+    
     for i in range(len(bboxs)):
         rows = []
         for j in range(len(bboxs)):

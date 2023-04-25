@@ -16,13 +16,16 @@ class RVLCDIP:
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False) 
         self.cpu_num = opt.num_cpu
         # four maps
-        dataset_list = []
-        for i in range(1):
-            ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl'+str(i)+'_dataset.hf'
-            raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
-            processed_ds = self.get_preprocessed_ds(raw_ds) # get trainable ds
-            dataset_list.append(processed_ds)
-        self.trainable_ds = concatenate_datasets(dataset_list)
+        # dataset_list = []
+        # for i in range(2):
+        #     ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl'+str(i)+'_dataset.hf'
+        #     raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
+        #     processed_ds = self.get_preprocessed_ds(raw_ds) # get trainable ds
+        #     dataset_list.append(processed_ds)
+        # self.trainable_ds = concatenate_datasets(dataset_list)
+        ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl1_dataset.hf'
+        raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
+        self.trainable_ds = self.get_preprocessed_ds(raw_ds) # get trainable ds
 
     # load raw dataset (including image object)
     def get_raw_ds(self, ds_path):
@@ -35,8 +38,8 @@ class RVLCDIP:
 
         # 1 load raw data
         raw_ds = load_from_disk(ds_path) # {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
-        # raw_ds = Dataset.from_dict(raw_ds[:500])    # obtain subset for experiment/debugging use
-        # 2 load img obj and norm bboxes 
+        raw_ds = Dataset.from_dict(raw_ds[2400:3500])    # obtain subset for experiment/debugging use
+        # 2 load img obj and norm bboxes
         ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes']) # load image objects
 
         return ds
@@ -54,7 +57,8 @@ class RVLCDIP:
                 })
         def _preprocess(batch):
             # 1) encode words and imgs
-            encodings = self.processor(images=batch['images'],text=batch['tokens'], boxes=batch['bboxes'],truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
+            encodings = self.processor(images=batch['images'],text=batch['tokens'], boxes=batch['bboxes'],
+                truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
             # 2) add position_ids
             position_ids = []
             for i, block_ids in enumerate(batch['block_ids']):
@@ -79,6 +83,7 @@ class RVLCDIP:
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'pixel_values']
         return processed_ds
 
+# find . -maxdepth 3 -type f -name "*.tif" | wc -l
 
     def _load_image(self,image_path):
         image = Image.open(image_path).convert("RGB")

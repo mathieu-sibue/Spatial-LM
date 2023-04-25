@@ -408,6 +408,7 @@ class LayoutLMv3SelfAttention(nn.Module):
             attention_scores += rel_pos / math.sqrt(self.attention_head_size)
         elif self.has_spatial_attention_bias and rel_2d_pos is not None:
             attention_scores += rel_2d_pos / math.sqrt(self.attention_head_size)
+            # attention_scores += rel_2d_pos
 
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in RobertaModel forward() function)
@@ -542,7 +543,7 @@ class LayoutLMv3Encoder(nn.Module):
         self.sp_query = nn.Linear(5632, 512)    # 512*11 -> 512
         self.sp_key = nn.Linear(5632, 512)
         self.sp_value = nn.Linear(5632,512)
-        self.softmax = nn.Softmax(dim=2)
+        self.softmax = nn.Softmax(dim=-1)   # or 2
 
         self.sp_query_linear= nn.Linear(512,512)
         self.sp_key_linear= nn.Linear(512,512)
@@ -700,7 +701,12 @@ class LayoutLMv3Encoder(nn.Module):
         # print('size2:', scalarized_nn[0][:2])   # [2, 262144, 1]
 
         # step3: re-shape
-        scalarized_nn = scalarized_nn.squeeze(-1).view(bshape[0], 512, 512)
+        scalarized_nn = scalarized_nn.squeeze(-1).view(bshape[0], 512, 512) # [2,512,512]
+        # normalize and reorganize
+        scalarized_nn = self.softmax(scalarized_nn)
+        # attention_matrix = self.sp_query_linear(attention_matrix)   #   linear transformation
+
+
         # scalarized_nn = F.pad(input=scalarized_nn, pad=(0, 1, 1, 1), mode='constant', value=0)
         target = torch.zeros([bshape[0],bshape[1],bshape[1]], device=device)
         target[:, :512, :512] = scalarized_nn

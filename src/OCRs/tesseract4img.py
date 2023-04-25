@@ -11,7 +11,11 @@ from datasets import Dataset, Features, Sequence, Value, Array2D, Array3D
 
 
 def _load_image(image_path):
-    image = Image.open(image_path).convert("RGB")
+    try:
+        image = Image.open(image_path).convert("RGB")
+    except Exception as e:
+        print(e)
+        return None, (-1,-1)
     w, h = image.size
     return image, (w, h)
 
@@ -65,8 +69,10 @@ def image_to_dict(img_paths, labels =None, tbox_norm=False):
             one_page_info['label'] = labels[idx]
 
         image, size = _load_image(image_path)
+        if not image: continue
+
         myconfig = r'--psm 11 --oem 3'
-        data = pytesseract.image_to_data(Image.open(image_path), config=myconfig, output_type='dict')
+        data = pytesseract.image_to_data(image, config=myconfig, output_type='dict')
 
         confs = data['conf']
         texts = data['text']

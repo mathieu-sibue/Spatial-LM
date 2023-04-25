@@ -136,41 +136,36 @@ def _split(input_list, n):
 
 
 # load file list
-# if __name__ == "__main__":
-#     # 1 get file_list
-#     all_files = []
-#     for dir in [funsd_plus_val,funsd_plus_train,funsd_plus_test, cord_train,
-#         cord_test, cord_dev, sorie_train, sorie_test]:
-#
-#         files = get_imgs_list(dir)
-#         all_files += files
-#     print('total files:',len(all_files))
-#     random.Random(88).shuffle(all_files)    # shuffle
-#
-#     # 2 generate dataset for file_list
-#     mydataset = tesseract4img.imgs_to_dataset_generator(all_files)
-#
-#
-#     print(mydataset)
-#     # 3 save dataset
-#     saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/funsd_cord_sorie_dataset.hf'
-#     mydataset.save_to_disk(saveto)
+# e.g.: generate_ds_from_img_dir([funsd_plus_val,funsd_plus_train,funsd_plus_test, cord_train,
+        # cord_test, cord_dev, sorie_train, sorie_test])
+def generate_ds_from_img_dir(dirs, save_to_path):
+    # 1 get file_lists
+    all_files = []
+    for dir in dirs:
+        files = get_imgs_list(dir)
+        all_files += files
+    print('total files:',len(all_files))
+    random.Random(88).shuffle(all_files)    # shuffle
+
+    # 2 generate dataset for file_list
+    mydataset = tesseract4img.imgs_to_dataset_generator(all_files)
 
 
+    print(mydataset)
+    # 3 save dataset
+    saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/funsd_cord_sorie_dataset.hf'
+    mydataset.save_to_disk(saveto)
 
-if __name__ == "__main__":
+
+def generate_rvlcdip_ds():
     dir = '/home/ubuntu/air/vrdu/datasets/images'
-    # res = get_imgs_dfs(dir, '.tif')
-    # print(len(res))
-    # print(res[:10])
 
-
-    for split in ['train','test','val']:
+    for split in ['val','test']:
         files,labels = get_img_label_pairs(split)
         print(split, ' to be generated file num:',len(files))
 
-        if split=='train':
-            file_part5, label_part5 = _split(files,8), _split(labels,8)
+        if split in ['train', 'test', 'val']:
+            file_part5, label_part5 = _split(files,5), _split(labels,5)
 
             for i, (sub_files, sub_labels) in enumerate(zip(file_part5, label_part5)):
                 print(split, i, ' to be generated file num:',len(sub_files))
@@ -185,3 +180,26 @@ if __name__ == "__main__":
             mydataset.save_to_disk(saveto)
 
             print(mydataset)
+
+
+def generate_cdip_ds(dir):
+    all_imgs = get_imgs_dfs(dir, '.tif')
+    # print(len(res))
+    # print(res[:5])
+    random.Random(88).shuffle(all_imgs)
+
+    split_imgs = _split(all_imgs,20)
+
+    for i, sub_imgs in enumerate(split_imgs):
+        print(i, ' to be generated:', len(sub_imgs))
+        mydataset = tesseract4img.imgs_to_dataset_generator(sub_imgs)
+
+        saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a'+str(i)+'_dataset.hf'
+        mydataset.save_to_disk(saveto)
+        print(mydataset)
+
+
+if __name__ == '__main__':
+    dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesa'
+    generate_cdip_ds(dir)
+
