@@ -190,16 +190,18 @@ def generate_cdip_ds(dir):
 
     split_imgs = _split(all_imgs,20)
 
-    for i, sub_imgs in enumerate(split_imgs):
+    for i in range(len(split_imgs)):
+        sub_imgs = split_imgs[i]
         print(i, ' to be generated:', len(sub_imgs))
         mydataset = tesseract4img.imgs_to_dataset_generator(sub_imgs)
 
-        saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b'+str(i)+'_dataset.hf'
+        saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_c'+str(i)+'_dataset.hf'
         mydataset.save_to_disk(saveto)
         print(mydataset)
 
 
 if __name__ == '__main__':
-    dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesb'
+    dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesc'
+    print('iterate dir:', dir)
     generate_cdip_ds(dir)
 

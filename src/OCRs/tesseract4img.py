@@ -10,9 +10,11 @@ from OCRs import img_util
 from datasets import Dataset, Features, Sequence, Value, Array2D, Array3D
 
 
-def _load_image(image_path):
+def _load_image(image_path, convert=False):
     try:
-        image = Image.open(image_path).convert("RGB")
+        image = Image.open(image_path)
+        if convert: 
+            image = image.convert("RGB")
     except Exception as e:
         print(e)
         return None, (-1,-1)
@@ -68,7 +70,7 @@ def image_to_dict(img_paths, labels =None, tbox_norm=False):
         if labels:
             one_page_info['label'] = labels[idx]
 
-        image, size = _load_image(image_path)
+        image, size = _load_image(image_path, convert=False)    # for OCR you dont convert, for model features, you convert;
         if not image: continue
 
         myconfig = r'--psm 11 --oem 3'
