@@ -46,6 +46,7 @@ if __name__=='__main__':
     img_paths,all_preds = mytrainer.inference(params, model, mydata)
     print('infered num:',len(img_paths))
     for img, pred in zip(img_paths,all_preds):
-        util.write_line('tmp_a0.txt', img + '\t' + str(pred))
+        label = model.config.id2label[pred]
+        util.write_line('tmp_a0.txt', img + '\t' + str(label))
 
 
