@@ -61,6 +61,26 @@ tgt_prob = {
     '15':0.15,
 }
 
+label_map = {
+    '0':'a0_letter',
+    '1':'b1_form',
+    '2':'c2_email',
+    '3':'d3_handwritten',
+    '4':'e4_advertisement',
+    '5':'f5_sci_paper',
+    '6':'g6_sci_report',
+    '7':'h7_specification',
+    '8':'i8_file_folder',
+    '9':'j9_news',
+    '10':'k10_budget',
+    '11':'l11_invoice',
+    '12':'m12_presentation',
+    '13':'n13_questionaire',
+    '14':'o14_resume',
+    '15':'p15_memo',
+}
+
+
 # sampling some data proportionally to the the ratio above;
 def get_ratioly_sampled(imgs,labels):
     sub_imgs, sub_labels = [],[]
@@ -195,13 +215,13 @@ def generate_cdip_ds(dir):
         print(i, ' to be generated:', len(sub_imgs))
         mydataset = tesseract4img.imgs_to_dataset_generator(sub_imgs)
 
-        saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_c'+str(i)+'_dataset.hf'
+        saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b'+str(i)+'_dataset.hf'
         mydataset.save_to_disk(saveto)
         print(mydataset)
 
 
 if __name__ == '__main__':
-    dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesc'
+    dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesb'
     print('iterate dir:', dir)
     generate_cdip_ds(dir)
 

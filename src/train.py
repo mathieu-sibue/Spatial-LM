@@ -39,5 +39,5 @@ if __name__=='__main__':
     model = LMs.setup(params).to(params.device)
 
     # # section 5, train (finetune)
-    mytrainer = MyTrainer(params)
-    mytrainer.train(params, model, mydata)
+    # mytrainer = MyTrainer(params)
+    # mytrainer.train(params, model, mydata)

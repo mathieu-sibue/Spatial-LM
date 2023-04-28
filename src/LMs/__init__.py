@@ -39,7 +39,8 @@ def setup(opt):
             model = SpatialLMForTokenclassifier.from_pretrained(opt.checkpoint_path, config = config)
         elif opt.task_type == 'sequence-classifier':
             config = SpatialLMConfig.from_pretrained(opt.checkpoint_path)
-            # config.num_labels = opt.num_labels  # set label num
+            if not bool(opt.inference_only):
+                config.num_labels, config.id2label, config.label2id = opt.num_labels, opt.id2label, opt.label2id  # set label num
             model = SpatialLMForSequenceClassification.from_pretrained(opt.checkpoint_path, config=config)
     else:
         raise Exception('model not supported:{}'.format(opt.network_type))

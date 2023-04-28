@@ -6,6 +6,25 @@ import json
 import transformers
 from PIL import Image
 
+label_map = {
+    '0':'a0_letter',
+    '1':'b1_form',
+    '2':'c2_email',
+    '3':'d3_handwritten',
+    '4':'e4_advertisement',
+    '5':'f5_sci_paper',
+    '6':'g6_sci_report',
+    '7':'h7_specification',
+    '8':'i8_file_folder',
+    '9':'j9_news',
+    '10':'k10_budget',
+    '11':'l11_invoice',
+    '12':'m12_presentation',
+    '13':'n13_questionaire',
+    '14':'o14_resume',
+    '15':'p15_memo',
+}
+
 class RVL:
     def __init__(self,opt) -> None:
         self.opt = opt
@@ -21,10 +40,11 @@ class RVL:
         raw_train, raw_test = self.get_raw_ds(opt.rvl_train), self.get_raw_ds(opt.rvl_test)
 
         # step 2.2, get labeled ds (get label list, and map label dataset)
-        _,_, opt.label_list = self._get_label_map(raw_train)
+        opt.id2label, opt.label2id, opt.label_list = self._get_label_map(raw_train)
         opt.num_labels = len(opt.label_list)    # 54; 27 pairs
         print('labels:',opt.label_list)
-        self.class_label = ClassLabel(num_classes=opt.num_labels, names = opt.label_list)
+        # labels: ['0', '1', '10', '11', '12', '13', '14', '15', '2', '3', '4', '5', '6', '7', '8', '9']
+        # self.class_label = ClassLabel(num_classes=opt.num_labels, names = opt.label_list)
 
         # map label ds
         train_label_ds, test_label_ds = self.get_label_ds(raw_train), self.get_label_ds(raw_test)
@@ -48,6 +68,8 @@ class RVL:
             sample['images'],size = self._load_image(sample['image'])
             # 2) normalize bboxes using the img size 
             sample['bboxes'] = [self._normalize_bbox(bbox, size) for bbox in sample['bboxes']]
+            # 3) change label into readable one
+            sample['label'] = label_map[sample['label']]
             return sample
 
         # 1 load raw data
@@ -81,8 +103,8 @@ class RVL:
             'position_ids': Sequence(feature=Value(dtype='int64')),
             'attention_mask': Sequence(Value(dtype='int64')),
             'bbox': Array2D(dtype="int64", shape=(512, 4)),
-            # 'labels': Value(dtype='int64'),
-            'labels': self.class_label, # this is sequence classification, so only value!
+            'labels': Value(dtype='int64'),
+            # 'labels': self.class_label, # this is sequence classification, so only value!
         })
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
@@ -94,11 +116,11 @@ class RVL:
 
 
     def get_label_ds(self,ds):
-        label_ds = ds.cast_column('label', self.class_label)
-        # def map_label2id(sample):
-        #     sample['label'] = self.class_label.str2int(sample['label'])
-        #     return sample
-        # label_ds = ds.map(map_label2id, num_proc=self.cpu_num)
+        # label_ds = ds.cast_column('label', self.class_label)
+        def map_label2id(sample):
+            sample['label'] = self.opt.label2id[sample['label']]
+            return sample
+        label_ds = ds.map(map_label2id, num_proc=self.cpu_num)
         return label_ds
 
 

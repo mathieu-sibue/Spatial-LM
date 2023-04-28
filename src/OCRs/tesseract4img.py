@@ -13,6 +13,9 @@ from datasets import Dataset, Features, Sequence, Value, Array2D, Array3D
 def _load_image(image_path, convert=False):
     try:
         image = Image.open(image_path)
+        num_img = image.n_frames
+        if num_img>1:
+            image.seek(0)
         if convert: 
             image = image.convert("RGB")
     except Exception as e:
@@ -73,9 +76,13 @@ def image_to_dict(img_paths, labels =None, tbox_norm=False):
         image, size = _load_image(image_path, convert=False)    # for OCR you dont convert, for model features, you convert;
         if not image: continue
 
-        myconfig = r'--psm 11 --oem 3'
-        data = pytesseract.image_to_data(image, config=myconfig, output_type='dict')
-
+        try:
+            myconfig = r'--psm 11 --oem 3'
+            data = pytesseract.image_to_data(image, config=myconfig, output_type='dict')
+        except Exception as e:
+            print(e)
+            continue
+        print(data)
         confs = data['conf']
         texts = data['text']
         page_nums = data['page_num']
