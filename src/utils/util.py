@@ -10,6 +10,15 @@ def write_line(file_path, content):
     with open(file_path, 'a', encoding='utf8') as fw:
         fw.write(content+'\n')
 
+def read_lines(file_path):
+    res = []
+    with open(file_path, 'r', encoding='utf8') as fr:
+        data = fr.readlines()
+    for line in data:
+        res.append(line.strip())
+    return res
+
+
 def create_folder(folder_path : str) -> None:
     """create a folder if not exists
     Args:

@@ -78,10 +78,11 @@ def image_to_dict(img_paths, labels =None, tbox_norm=False):
 
         try:
             myconfig = r'--psm 11 --oem 3'
-            data = pytesseract.image_to_data(image, config=myconfig, output_type='dict')
-        except Exception as e:
-            print(e)
+            data = pytesseract.image_to_data(image, config=myconfig, output_type='dict', timeout=8) # 8s
+        except RuntimeError as timeout_error:
+            print('time out')
             continue
+
         # print(data)
         confs = data['conf']
         texts = data['text']
@@ -124,6 +125,8 @@ def image_to_dict(img_paths, labels =None, tbox_norm=False):
         if not one_page_info['tokens']: continue
         # extend with bboxes, i.e., the shared box
         one_page_info = img_util._extend_shared_bbox(one_page_info)
+        if idx%100==0:
+            print(idx, one_page_info)
         
         yield one_page_info
 

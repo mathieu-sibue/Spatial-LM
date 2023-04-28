@@ -3,7 +3,7 @@ from datasets import Dataset, Features, Sequence, Value, Array2D, Array3D
 import os
 import random
 from OCRs import tesseract4img
-
+from utils import util
 
 
 '''
@@ -202,8 +202,9 @@ def generate_rvlcdip_ds():
             print(mydataset)
 
 
-def generate_cdip_ds(dir):
-    all_imgs = get_imgs_dfs(dir, '.tif')
+def generate_cdip_ds(dir, all_imgs=None):
+    if not all_imgs:
+        all_imgs = get_imgs_dfs(dir, '.tif')
     # print(len(res))
     # print(res[:5])
     random.Random(88).shuffle(all_imgs)
@@ -219,9 +220,16 @@ def generate_cdip_ds(dir):
         mydataset.save_to_disk(saveto)
         print(mydataset)
 
+# if __name__ == '__main__':
+#     dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesc'
+#     all_imgs = get_imgs_dfs(dir, '.tif')
+#     for img in all_imgs:
+#         # print(img)
+#         util.write_line('c_imgs.txt', img)
 
 if __name__ == '__main__':
-    dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesb/b'
+    # dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesb/'
+    all_imgs = util.read_lines('b_imgs.txt')
     print('iterate dir:', dir)
-    generate_cdip_ds(dir)
+    generate_cdip_ds(dir, all_imgs)
 
