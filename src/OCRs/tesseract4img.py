@@ -82,7 +82,7 @@ def image_to_dict(img_paths, labels =None, tbox_norm=False):
         except Exception as e:
             print(e)
             continue
-        print(data)
+        # print(data)
         confs = data['conf']
         texts = data['text']
         page_nums = data['page_num']

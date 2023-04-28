@@ -221,7 +221,7 @@ def generate_cdip_ds(dir):
 
 
 if __name__ == '__main__':
-    dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesb'
+    dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesb/b'
     print('iterate dir:', dir)
     generate_cdip_ds(dir)
 

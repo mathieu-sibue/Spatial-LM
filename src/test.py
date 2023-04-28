@@ -42,7 +42,8 @@ if __name__=='__main__':
 
     # # section 5, test
     mytrainer = MyTrainer(params)
-    # mytrainer.train(params, model, mydata)
+
+    # section 6, decode labels
     img_paths,all_preds = mytrainer.inference(params, model, mydata)
     print('infered num:',len(img_paths))
     for img, pred in zip(img_paths,all_preds):
