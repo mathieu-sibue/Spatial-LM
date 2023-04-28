@@ -14,6 +14,8 @@ import evaluate
 from datasets import load_metric
 metric = evaluate.load("seqeval")
 
+
+
 def finetune(opt,model, mydata):
     # 1 data loader
     loader_train = DataLoader(mydata.trainable_dataset['train'], batch_size=opt.batch_size,shuffle=True)

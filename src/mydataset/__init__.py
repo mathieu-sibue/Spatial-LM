@@ -12,6 +12,8 @@ def setup(opt):
         from mydataset.rvl import RVL as MyData
     elif opt.dataset_name.lower() == 'sorie':
         from mydataset.sorie import SORIE as MyData
+    elif opt.dataset_name.lower() == 'cdip':
+        from mydataset.cdip import CDIP as MyData 
 
     else:
         raise Exception('dataset not supported:{}'.format(opt.dataset_name))

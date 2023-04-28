@@ -7,7 +7,7 @@ import transformers
 from mydataset import myds_util
 
 
-class RVLCDIP:
+class CDIP:
     def __init__(self,opt):
         self.opt = opt
         self.config = AutoConfig.from_pretrained(opt.layoutlm_dir)
@@ -16,16 +16,10 @@ class RVLCDIP:
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False) 
         self.cpu_num = opt.num_cpu
         # four maps
-        # dataset_list = []
-        # for i in range(2):
-        #     ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl'+str(i)+'_dataset.hf'
-        #     raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
-        #     processed_ds = self.get_preprocessed_ds(raw_ds) # get trainable ds
-        #     dataset_list.append(processed_ds)
-        # self.trainable_ds = concatenate_datasets(dataset_list)
-        ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl1_dataset.hf'
-        raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
-        self.trainable_ds = self.get_preprocessed_ds(raw_ds) # get trainable ds
+        ds_path = opt.cdip_path
+        self.raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
+        self.trainable_ds = self.get_preprocessed_ds(self.raw_ds) # get trainable ds
+
 
     # load raw dataset (including image object)
     def get_raw_ds(self, ds_path):
@@ -38,7 +32,7 @@ class RVLCDIP:
 
         # 1 load raw data
         raw_ds = load_from_disk(ds_path) # {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
-        raw_ds = Dataset.from_dict(raw_ds[2400:3500])    # obtain subset for experiment/debugging use
+        # raw_ds = Dataset.from_dict(raw_ds[:100])    # obtain subset for experiment/debugging use
         # 2 load img obj and norm bboxes
         ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes']) # load image objects
 
@@ -53,7 +47,7 @@ class RVLCDIP:
                 'attention_mask': Sequence(Value(dtype='int64')),
                 'bbox': Array2D(dtype="int64", shape=(512, 4)),
                 # 'spatial_matrix': Array3D(dtype='float32', shape=(512, 512, 11)),     # 
-                'labels': Sequence(feature=Value(dtype='int64')),
+                # 'labels': Sequence(feature=Value(dtype='int64')),
                 })
         def _preprocess(batch):
             # 1) encode words and imgs
@@ -74,7 +68,7 @@ class RVLCDIP:
             #     spatial_matrix.append(sm)
             # encodings['spatial_matrix'] = spatial_matrix
             # 4) copy labels
-            encodings['labels'] = encodings['input_ids'].copy()
+            # encodings['labels'] = encodings['input_ids'].copy()
 
             return encodings
 

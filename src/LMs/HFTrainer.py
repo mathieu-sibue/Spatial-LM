@@ -9,15 +9,37 @@ from transformers.data.data_collator import default_data_collator
 import numpy as np
 from transformers import DataCollatorForLanguageModeling
 import evaluate
+from LMs.mycollator import BlockMaskingDataCollator
+
 
 class MyTrainer:
     def __init__(self,opt):
         self.opt = opt
 
+    def inference(self, opt, model, mydata):
+        trainable_ds = mydata.trainable_ds
+        raw_ds = mydata.raw_ds
+        batch_size = 8
+        train_dataloader = DataLoader(trainable_ds, batch_size=batch_size)
+        print('-- start to infer --')
+        all_preds = []
+        img_paths = []
+        model.eval()
+        with torch.no_grad():
+            for batch_index, inputs in enumerate(train_dataloader):
+                outputs = model(**inputs)
+                batch_predictions = torch.argmax(outputs.logits, dim=-1).tolist()
+                batch_imgs = [raw_ds[i + batch_size*batch_index]['image'] for i in range(len(batch_predictions))]
+                all_preds.extend(batch_predictions)
+                img_paths.extend(batch_imgs)
+        return img_paths,all_preds
+
+
     def pretrain(self,opt, model, mydata):
         # mlm= True uses masked language model; otherwise, causal LM (NTP); 
         # mydata.tokenizer.pad_token = tokenizer.eos_token  # no idea why??
-        data_collator = DataCollatorForLanguageModeling(tokenizer=mydata.tokenizer, mlm=True, mlm_probability=opt.mlm_probability)
+        # data_collator = DataCollatorForLanguageModeling(tokenizer=mydata.tokenizer, mlm=True, mlm_probability=opt.mlm_probability)
+        data_collator = BlockMaskingDataCollator(tokenizer=mydata.tokenizer, mlm=True, mlm_probability=0.03)
 
         # logging_steps = len(mydata.train_dataset)  //opt.batch_size
         trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=opt.test_size)
@@ -115,10 +137,10 @@ class MyTrainer:
 
         preds = np.argmax(preds, axis=-1)
         acc = simple_accuracy(preds, labels)
-        # f1 = f1_score(y_true=labels, y_pred=preds).item()
+        f1 = f1_score(y_true=labels, y_pred=preds).item()
         return {
             "accuracy": acc,
-            # "f1": f1,
+            "f1": f1,
         }
 
     def compute_metrics(self, p):

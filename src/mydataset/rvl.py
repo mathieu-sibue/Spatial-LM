@@ -52,7 +52,7 @@ class RVL:
 
         # 1 load raw data
         raw_ds = load_from_disk(ds_path) # {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
-        # raw_ds = Dataset.from_dict(raw_ds[:300])    # obtain subset for experiment/debugging use
+        raw_ds = Dataset.from_dict(raw_ds[:300])    # obtain subset for experiment/debugging use
         # 2 load img obj and norm bboxes 
         ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes']) # load image objects
 
@@ -81,8 +81,8 @@ class RVL:
             'position_ids': Sequence(feature=Value(dtype='int64')),
             'attention_mask': Sequence(Value(dtype='int64')),
             'bbox': Array2D(dtype="int64", shape=(512, 4)),
-            'labels': Value(dtype='int64'),
-            # 'labels': self.class_label, # this is sequence classification, so only value!
+            # 'labels': Value(dtype='int64'),
+            'labels': self.class_label, # this is sequence classification, so only value!
         })
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")

@@ -5,6 +5,11 @@ import torch
 import math
 import numpy as np
 
+
+def write_line(file_path, content):
+    with open(file_path, 'a', encoding='utf8') as fw:
+        fw.write(content+'\n')
+
 def create_folder(folder_path : str) -> None:
     """create a folder if not exists
     Args:
