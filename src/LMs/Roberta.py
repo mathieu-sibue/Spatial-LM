@@ -14,7 +14,7 @@ class GraphRobertaTokenClassifier(nn.Module):
         self.opt = opt
         self.num_labels = opt.num_labels
         self.config = RobertaConfig.from_pretrained(opt.roberta_dir)
-        self.roberta = RobertaModel(config=self.config, add_pooling_layer=False)
+        self.roberta = RobertaModel.from_pretrained(opt.roberta_dir,config=self.config, add_pooling_layer=False)
         classifier_dropout = (
             self.config.classifier_dropout if self.config.classifier_dropout is not None else self.config.hidden_dropout_prob
         )
@@ -47,7 +47,7 @@ class RobertaTokenClassifier(nn.Module):
         self.opt = opt
         self.num_labels = opt.num_labels
         self.config = RobertaConfig.from_pretrained(opt.roberta_dir)
-        self.roberta = RobertaModel(config=self.config, add_pooling_layer=False)
+        self.roberta = RobertaModel.from_pretrained(opt.roberta_dir,config=self.config, add_pooling_layer=False)
         classifier_dropout = (
             self.config.classifier_dropout if self.config.classifier_dropout is not None else self.config.hidden_dropout_prob
         )
