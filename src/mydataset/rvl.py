@@ -43,6 +43,7 @@ class RVL:
         opt.id2label, opt.label2id, opt.label_list = self._get_label_map(raw_train)
         opt.num_labels = len(opt.label_list)    # 54; 27 pairs
         print('labels:',opt.label_list)
+        print('id2label:', opt.id2label)
         # labels: ['0', '1', '10', '11', '12', '13', '14', '15', '2', '3', '4', '5', '6', '7', '8', '9']
         # self.class_label = ClassLabel(num_classes=opt.num_labels, names = opt.label_list)
 
@@ -74,7 +75,8 @@ class RVL:
 
         # 1 load raw data
         raw_ds = load_from_disk(ds_path) # {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
-        raw_ds = Dataset.from_dict(raw_ds[:300])    # obtain subset for experiment/debugging use
+        if self.opt.test_small_samp > 0:
+            raw_ds = Dataset.from_dict(raw_ds[:self.opt.test_small_samp])    # obtain subset for experiment/debugging use
         # 2 load img obj and norm bboxes 
         ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes']) # load image objects
 
@@ -114,7 +116,7 @@ class RVL:
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'labels', 'pixel_values']
         return processed_ds
 
-
+    # turn label to ids (0,1,2,...) for trainable use
     def get_label_ds(self,ds):
         # label_ds = ds.cast_column('label', self.class_label)
         def map_label2id(sample):
