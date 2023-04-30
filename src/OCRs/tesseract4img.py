@@ -80,9 +80,12 @@ def image_to_dict(img_paths, labels =None, tbox_norm=False):
 
         try:
             myconfig = r'--psm 11 --oem 3'
-            data = pytesseract.image_to_data(image, config=myconfig, output_type='dict', timeout=3) # 10s
+            data = pytesseract.image_to_data(image, config=myconfig, output_type='dict', timeout=2) # 2/3s
         except RuntimeError as timeout_error:
             print(timeout_error)
+            continue
+        except:
+            print("Something else went wrong")
             continue
 
         # print(data)

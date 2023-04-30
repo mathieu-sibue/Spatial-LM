@@ -80,7 +80,7 @@ id2label = {
     '15':'p15_memo',
 }
 
-label2id = {label:id for id,label in id2label.items}
+label2id = {label:id for id,label in id2label.items()}
 
 
 # sampling some data proportionally to the the ratio above;
@@ -215,7 +215,7 @@ def generate_cdip_ds(dir, all_imgs=None):
     split_imgs = _split(all_imgs,20)
 
     for i,sub_imgs in enumerate(split_imgs):
-        if i<3: continue
+        # if i<3: continue
         print(i, ' to be generated:', len(sub_imgs))
         mydataset = tesseract4img.imgs_to_dataset_generator(sub_imgs)
 
@@ -224,36 +224,36 @@ def generate_cdip_ds(dir, all_imgs=None):
         print(mydataset)
 
 
-if __name__ == '__main__':
-    # get all predicts
-    img_paths, labels = util.read_pairs('')
-    # get sampled subset
-    sub_imgs, sub_labels = get_ratioly_sampled(img_paths, labels)
+# if __name__ == '__main__':
+#     # get all predicts
+#     img_paths, labels = util.read_pairs('')
+#     # get sampled subset
+#     sub_imgs, sub_labels = get_ratioly_sampled(img_paths, labels)
 
-    for img,lab in zip(sub_imgs, sub_labels):
-        util.write_line('sampled_a.txt',img+'\t'+lab)
+#     for img,lab in zip(sub_imgs, sub_labels):
+#         util.write_line('sampled_a.txt',img+'\t'+lab)
 
 
-if __name__ == '__main__':
-    # load datasets, with concatenation; 
-    d1 = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a0_dataset.hf'
-    d1 = load_from_disk(d1)
-    d2 = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a1_dataset.hf'
-    d2 = load_from_disk(d2)
-    d3 = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a2_dataset.hf'
-    d3 = load_from_disk(d3)
-    all_ds = concatenate_datasets([d1,d2,d3])
+# if __name__ == '__main__':
+#     # load datasets, with concatenation; 
+#     d1 = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a0_dataset.hf'
+#     d1 = load_from_disk(d1)
+#     d2 = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a1_dataset.hf'
+#     d2 = load_from_disk(d2)
+#     d3 = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a2_dataset.hf'
+#     d3 = load_from_disk(d3)
+#     all_ds = concatenate_datasets([d1,d2,d3])
 
-    # load sampled set,
-    img_paths, labels = util.read_pairs('')
-    lookup = set(img_paths)
-    print(len(lookup))
+#     # load sampled set,
+#     img_paths, labels = util.read_pairs('')
+#     lookup = set(img_paths)
+#     print(len(lookup))
 
-    # filter with the set
-    ds = all_ds.filter(lambda sample: sample['image'] in lookup, num_proc=os.cpu_count())
-    print(ds)
+#     # filter with the set
+#     ds = all_ds.filter(lambda sample: sample['image'] in lookup, num_proc=os.cpu_count())
+#     print(ds)
 
-    ds.save_to_disk('temp_a.hf')
+#     ds.save_to_disk('temp_a.hf')
 
 # if __name__ == '__main__':
 #     dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesd'
@@ -262,10 +262,10 @@ if __name__ == '__main__':
 #         # print(img)
 #         util.write_line('d_imgs.txt', img)
 
-# if __name__ == '__main__':
-#     # dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesb/'
-#     all_img_paths = '/home/ubuntu/air/vrdu/datasets/cdip_v1/d_imgs.txt'
-#     all_imgs = util.read_lines(all_img_paths)
-#     print('iterate dir:', dir)
-#     generate_cdip_ds(dir, all_imgs) 
+if __name__ == '__main__':
+    # dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesb/'
+    all_img_paths = '/home/ubuntu/air/vrdu/datasets/cdip_v1/d_imgs.txt'
+    all_imgs = util.read_lines(all_img_paths)
+    # print('iterate dir:', dir)
+    generate_cdip_ds(dir, all_imgs) 
 
