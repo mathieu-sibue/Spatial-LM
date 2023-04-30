@@ -1,4 +1,4 @@
-from datasets import load_from_disk, load_dataset ,Features, Sequence, Value, Array2D, Array3D, Dataset, DatasetDict
+from datasets import concatenate_datasets,load_from_disk, load_dataset ,Features, Sequence, Value, Array2D, Array3D, Dataset, DatasetDict
 from datasets.features import ClassLabel
 from transformers import AutoProcessor, AutoTokenizer, AutoConfig
 import os
@@ -35,10 +35,14 @@ class RVL:
         assert isinstance(self.tokenizer, transformers.PreTrainedTokenizerFast)  # get sub
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False)    # wrap of featureExtract & tokenizer
 
-        self.cpu_num = opt.num_cpu
         # step 2.1: get raw ds (already normalized bbox, img object)
-        raw_train, raw_test = self.get_raw_ds(opt.rvl_train), self.get_raw_ds(opt.rvl_test)
-
+        # raw_ds_list = []
+        # for i in range(6,8):
+        #     ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_rvl_train'+str(i)+'_dataset.hf'    
+        #     raw_ds_list.append(self.get_raw_ds(ds_path)) # 1) load raw_ds; 2) load imgs; 3) norm bbox
+        # raw_train = concatenate_datasets(raw_ds_list)
+        raw_train = self.get_raw_ds(opt.rvl_train)
+        raw_test = self.get_raw_ds(opt.rvl_test)
         # step 2.2, get labeled ds (get label list, and map label dataset)
         opt.id2label, opt.label2id, opt.label_list = self._get_label_map(raw_train)
         opt.num_labels = len(opt.label_list)    # 54; 27 pairs
@@ -78,7 +82,7 @@ class RVL:
         if self.opt.test_small_samp > 0:
             raw_ds = Dataset.from_dict(raw_ds[:self.opt.test_small_samp])    # obtain subset for experiment/debugging use
         # 2 load img obj and norm bboxes 
-        ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes']) # load image objects
+        ds = raw_ds.map(_load_imgs_obj, num_proc=os.cpu_count(), remove_columns=['tboxes']) # load image objects
 
         return ds
 
@@ -110,7 +114,7 @@ class RVL:
         })
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
-        processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
+        processed_ds = ds.map(_preprocess, batched=True, num_proc=os.cpu_count(), 
             remove_columns=ds.column_names, features=features).with_format("torch")
     
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'labels', 'pixel_values']
@@ -122,7 +126,7 @@ class RVL:
         def map_label2id(sample):
             sample['label'] = self.opt.label2id[sample['label']]
             return sample
-        label_ds = ds.map(map_label2id, num_proc=self.cpu_num)
+        label_ds = ds.map(map_label2id, num_proc=os.cpu_count())
         return label_ds
 
 

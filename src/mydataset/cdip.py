@@ -5,7 +5,7 @@ from PIL import Image
 from datasets import Dataset, concatenate_datasets
 import transformers
 from mydataset import myds_util
-
+import os
 
 class CDIP:
     def __init__(self,opt):
@@ -14,7 +14,7 @@ class CDIP:
         self.tokenizer = AutoTokenizer.from_pretrained(opt.layoutlm_dir)
         assert isinstance(self.tokenizer, transformers.PreTrainedTokenizerFast) # get sub
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False) 
-        self.cpu_num = opt.num_cpu
+
         # four maps
         ds_path = opt.cdip_path
         self.raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
@@ -26,16 +26,22 @@ class CDIP:
         def _load_imgs_obj(sample):
             # 1) load img obj
             sample['images'],size = self._load_image(sample['image'])
+            sample['size'] = size
+            return sample
+        def _norm_bbox(sample):
             # 2) normalize bboxes using the img size 
-            sample['bboxes'] = [self._normalize_bbox(bbox, size) for bbox in sample['bboxes']]
+            sample['bboxes'] = [self._normalize_bbox(bbox, sample['size']) for bbox in sample['bboxes']]
             return sample
 
         # 1 load raw data
         raw_ds = load_from_disk(ds_path) # {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
-        raw_ds = Dataset.from_dict(raw_ds[:20000])    # obtain subset for experiment/debugging use
-        # 2 load img obj and norm bboxes
-        ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes']) # load image objects
-
+        if self.opt.test_small_samp>0:
+            raw_ds = Dataset.from_dict(raw_ds[:self.opt.test_small_samp])    # obtain subset for experiment/debugging use
+        # 2 load img obj
+        ds = raw_ds.map(_load_imgs_obj, num_proc=os.cpu_count(), remove_columns=['tboxes']) # load image objects
+        ds = ds.filter(lambda sample: sample['size'][0]>0, num_proc=os.cpu_count()) # filter those images that are failed
+        # 3. norm bbox
+        ds = ds.map(_norm_bbox, num_proc=os.cpu_count(), remove_columns=['size'])
         return ds
 
     # overall preprocessing
@@ -73,15 +79,22 @@ class CDIP:
             return encodings
 
         processed_ds = ds.map(_preprocess,
-            batched=True, num_proc=self.cpu_num, remove_columns=ds.column_names).with_format("torch")
+            batched=True, num_proc=os.cpu_count(), remove_columns=ds.column_names).with_format("torch")
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'pixel_values']
         return processed_ds
 
 # find . -maxdepth 3 -type f -name "*.tif" | wc -l
 
     def _load_image(self,image_path):
-        image = Image.open(image_path).convert("RGB")
-        w, h = image.size
+        try:
+            image = Image.open(image_path)
+            if image.n_frames>1:
+                image.seek(0)
+            image = image.convert("RGB")
+            w, h = image.size
+        except Exception as e:
+            print(e)
+            return None, (-1,-1)
         return image, (w, h)
 
     def _normalize_bbox(self, bbox, size):

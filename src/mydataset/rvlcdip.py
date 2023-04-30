@@ -5,7 +5,7 @@ from PIL import Image
 from datasets import Dataset, concatenate_datasets
 import transformers
 from mydataset import myds_util
-
+import os
 
 class RVLCDIP:
     def __init__(self,opt):
@@ -14,7 +14,7 @@ class RVLCDIP:
         self.tokenizer = AutoTokenizer.from_pretrained(opt.layoutlm_dir)
         assert isinstance(self.tokenizer, transformers.PreTrainedTokenizerFast) # get sub
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False) 
-        self.cpu_num = opt.num_cpu
+
         # four maps
         # dataset_list = []
         # for i in range(2):
@@ -40,7 +40,7 @@ class RVLCDIP:
         raw_ds = load_from_disk(ds_path) # {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
         raw_ds = Dataset.from_dict(raw_ds[2400:3500])    # obtain subset for experiment/debugging use
         # 2 load img obj and norm bboxes
-        ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes']) # load image objects
+        ds = raw_ds.map(_load_imgs_obj, num_proc=os.cpu_count(), remove_columns=['tboxes']) # load image objects
 
         return ds
 
@@ -79,7 +79,7 @@ class RVLCDIP:
             return encodings
 
         processed_ds = ds.map(_preprocess,
-            batched=True, num_proc=self.cpu_num, remove_columns=ds.column_names).with_format("torch")
+            batched=True, num_proc=os.cpu_count(), remove_columns=ds.column_names).with_format("torch")
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'pixel_values']
         return processed_ds
 

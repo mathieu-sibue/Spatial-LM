@@ -5,6 +5,16 @@ import torch
 import math
 import numpy as np
 
+def read_pairs(file_path, delimiter='\t'):
+    paths, labels = [],[]
+    with open(file_path, 'r', encoding='utf8') as fr:
+        data = fr.readlines()
+    for line in data:
+        strs = line.split(delimiter)
+        if len(strs)<2: continue
+        paths.append(strs[0])
+        labels.append(strs[1].strip())
+    return paths, labels
 
 def write_line(file_path, content):
     with open(file_path, 'a', encoding='utf8') as fw:

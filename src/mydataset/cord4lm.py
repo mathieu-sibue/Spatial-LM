@@ -25,7 +25,7 @@ class CORD:
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False)    # wrap of featureExtract & tokenizer
 
         self.label_col_name = "ner_tags"
-        self.cpu_num = opt.num_cpu
+
         # step 2.1: get raw ds (already normalized bbox, img object)
         raw_train, raw_test = self.get_raw_ds()
 
@@ -113,7 +113,7 @@ class CORD:
             # 2) normalize bboxes using the img size 
             sample['bboxes'] = [self._normalize_bbox(bbox, size) for bbox in sample['bboxes']]
             return sample
-        normed_ds = ds.map(_load_and_norm, num_proc=self.cpu_num) # load image objects
+        normed_ds = ds.map(_load_and_norm, num_proc=os.cpu_count()) # load image objects
         return normed_ds
 
 
@@ -151,7 +151,7 @@ class CORD:
         })
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
-        processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
+        processed_ds = ds.map(_preprocess, batched=True, num_proc=os.cpu_count(), 
             remove_columns=ds.column_names, features=features).with_format("torch")
     
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'labels', 'pixel_values']
@@ -162,7 +162,7 @@ class CORD:
         def map_label2id(sample):
             sample['ner_tags'] = [self.class_label.str2int(ner_label) for ner_label in sample['ner_tags']]
             return sample
-        label_ds = ds.map(map_label2id, num_proc=self.cpu_num)
+        label_ds = ds.map(map_label2id, num_proc=os.cpu_count())
         return label_ds
 
 

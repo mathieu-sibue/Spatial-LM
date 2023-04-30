@@ -26,7 +26,6 @@ class SORIE:
         assert isinstance(self.tokenizer, transformers.PreTrainedTokenizerFast)  # get sub
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False)    # wrap of featureExtract & tokenizer
 
-        self.cpu_num = opt.num_cpu
 
         # step2.1: load raw
         raw_train, raw_test = self.get_raw_ds()
@@ -69,7 +68,7 @@ class SORIE:
             # 2) normalize bboxes using the img size 
             sample['bboxes'] = [self._normalize_bbox(bbox, size) for bbox in sample['bboxes']]
             return sample
-        normed_ds = ds.map(_load_and_norm, num_proc=self.cpu_num) # load image objects
+        normed_ds = ds.map(_load_and_norm, num_proc=os.cpu_count()) # load image objects
         return normed_ds
 
     def _get_label_list(self,labels):
@@ -97,7 +96,7 @@ class SORIE:
         def map_label2id(sample):
             sample['labels'] = [self.class_label.str2int(ner_label) for ner_label in sample['labels']]
             return sample
-        label_ds = ds.map(map_label2id, num_proc=self.cpu_num)
+        label_ds = ds.map(map_label2id, num_proc=os.cpu_count())
         return label_ds
 
     def get_preprocessed_ds(self,ds):
@@ -134,7 +133,7 @@ class SORIE:
         })
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
-        processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
+        processed_ds = ds.map(_preprocess, batched=True, num_proc=os.cpu_count(), 
             remove_columns=ds.column_names, features=features).with_format("torch")
     
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'labels', 'pixel_values']

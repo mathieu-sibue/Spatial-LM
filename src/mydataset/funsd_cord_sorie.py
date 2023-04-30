@@ -1,4 +1,4 @@
-
+import os
 from datasets import load_from_disk, Features, Sequence, Value, Array2D, Array3D
 from transformers import LayoutLMv3TokenizerFast, AutoTokenizer, AutoProcessor, AutoConfig, LayoutLMv3FeatureExtractor
 from PIL import Image
@@ -12,7 +12,7 @@ class FUNSD_CORD_SORIE:
         self.tokenizer = AutoTokenizer.from_pretrained(opt.layoutlm_dir)
         assert isinstance(self.tokenizer, transformers.PreTrainedTokenizerFast) # get sub
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False) 
-        self.cpu_num = 32
+
         # put the dataset path here
         ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/funsd_cord_sorie_dataset.hf'
         self.raw_ds = self.get_raw_ds(ds_path)
@@ -32,7 +32,7 @@ class FUNSD_CORD_SORIE:
         raw_ds = load_from_disk(ds_path) # {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
         # raw_ds = Dataset.from_dict(raw_ds[:500])    # obtain subset for experiment/debugging use
         # 2 load img obj and norm bboxes 
-        ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes']) # load image objects
+        ds = raw_ds.map(_load_imgs_obj, num_proc=os.cpu_count(), remove_columns=['tboxes']) # load image objects
 
         return ds
 
@@ -51,7 +51,7 @@ class FUNSD_CORD_SORIE:
             return encodings
 
         processed_ds = ds.map(_preprocess,
-            batched=True, num_proc=self.cpu_num, remove_columns=['tokens', 'bboxes','block_ids','images','image'])
+            batched=True, num_proc=os.cpu_count(), remove_columns=['tokens', 'bboxes','block_ids','images','image'])
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'pixel_values']
         return processed_ds
 
@@ -75,7 +75,7 @@ class FUNSD_CORD_SORIE:
                 'bbox': Array2D(dtype="int64", shape=(512, 4)),
                 'labels': Sequence(feature=Value(dtype='int64')),
                 })
-        trainable_ds = ds.map(lambda example: {"labels": example['input_ids'].copy()}, num_proc=self.cpu_num,
+        trainable_ds = ds.map(lambda example: {"labels": example['input_ids'].copy()}, num_proc=os.cpu_count(),
             features = features).with_format("torch")
 
         return trainable_ds

@@ -23,31 +23,41 @@ def parse_args(config_path):
 if __name__=='__main__':
 
     # Section 1, parse parameters
-    args = parse_args('config/test.ini') # from config file
+    args = parse_args('config/inference.ini') # from config file
     params = Params()   # put to param object
     params.parse_config(args.config_file)
     params.config_file = args.config_file
 
-    # params.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    params.device = torch.device('cpu')
+    params.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    # params.device = torch.device('cpu')
     print('Using device:', params.device)
 
-    # section 2, objective function and output dim/ move to trainer
-    # this is usually covered by huggingface models
-    params.output_dir = 'tmp_dir/'
-    mydata = mydataset.setup(params)
-
-    # section 3, get the model
+    # section 2, get the model
     model = LMs.setup(params).to(params.device)
 
-    # # section 5, test
+    #section 3, trainer
     mytrainer = MyTrainer(params)
 
-    # section 6, decode labels
-    img_paths,all_preds = mytrainer.inference(params, model, mydata)
-    print('infered num:',len(img_paths))
-    for img, pred in zip(img_paths,all_preds):
-        label = model.config.id2label[pred]
-        util.write_line('tmp_a0.txt', img + '\t' + str(label))
+    # section 3,data
+    # this is usually covered by huggingface models
+    # params.output_dir = 'tmp_dir/'
+    for file_path in [
+        '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b0_dataset.hf',
+        # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b1_dataset.hf',
+        # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b2_dataset.hf',
+        # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b3_dataset.hf',
+    ]:
+        print('-- prepare:', file_path)
+        params.cdip_path = file_path
+        mydata = mydataset.setup(params)
+        print('-- finished mapping, now inference:', file_path)
 
+        # section 6, decode labels
+        img_paths,all_preds = mytrainer.inference(params, model, mydata)
+        print('finished infering, and prepare to write:',len(img_paths))
+        for img, pred in zip(img_paths,all_preds):
+            label = model.config.id2label[pred]
+            util.write_line('tmp_b.txt', img.strip() + '\t' + str(label))
+
+        print('--- end of infer for:', file_path)
 

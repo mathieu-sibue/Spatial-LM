@@ -25,7 +25,7 @@ class FUNSD:
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False)    # wrap of featureExtract & tokenizer
 
         self.label_col_name = "ner_tags"
-        self.cpu_num = 8
+
         # step 2.1: get raw ds (already normalized bbox, img object)
         raw_train, raw_test = self.get_raw_ds()
         # step 2.2, get  labeled ds (get label list, and map label dataset)
@@ -149,7 +149,7 @@ class FUNSD:
         })
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
-        processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
+        processed_ds = ds.map(_preprocess, batched=True, num_proc=os.cpu_count(), 
             remove_columns=ds.column_names, features=features).with_format("torch")
     
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'labels', 'pixel_values']
@@ -160,7 +160,7 @@ class FUNSD:
         def map_label2id(sample):
             sample['ner_tags'] = [self.class_label.str2int(ner_label) for ner_label in sample['ner_tags']]
             return sample
-        label_ds = ds.map(map_label2id, num_proc=self.cpu_num)
+        label_ds = ds.map(map_label2id, num_proc=os.cpu_count())
         return label_ds
 
 
