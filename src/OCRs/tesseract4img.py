@@ -74,11 +74,13 @@ def image_to_dict(img_paths, labels =None, tbox_norm=False):
             one_page_info['label'] = labels[idx]
 
         image, size = _load_image(image_path, convert=False)    # for OCR you dont convert, for model features, you convert;
-        if not image: continue
+        if not image or size[0]<0: continue
+
+        one_page_info['size'] = size
 
         try:
             myconfig = r'--psm 11 --oem 3'
-            data = pytesseract.image_to_data(image, config=myconfig, output_type='dict', timeout=10) # 10s
+            data = pytesseract.image_to_data(image, config=myconfig, output_type='dict', timeout=3) # 10s
         except RuntimeError as timeout_error:
             print(timeout_error)
             continue
