@@ -216,21 +216,21 @@ def generate_cdip_ds(dir, all_imgs=None):
         print(i, ' to be generated:', len(sub_imgs))
         mydataset = tesseract4img.imgs_to_dataset_generator(sub_imgs)
 
-        saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a'+str(i)+'_dataset.hf'
+        saveto = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_d'+str(i)+'_dataset.hf'
         mydataset.save_to_disk(saveto)
         print(mydataset)
 
 # if __name__ == '__main__':
-#     dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesa'
+#     dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesd'
 #     all_imgs = get_imgs_dfs(dir, '.tif')
 #     for img in all_imgs:
 #         # print(img)
-#         util.write_line('a_imgs.txt', img)
+#         util.write_line('d_imgs.txt', img)
 
 if __name__ == '__main__':
     # dir = '/home/ubuntu/air/vrdu/datasets/cdip_v1/imagesb/'
-    all_img_paths = '/home/ubuntu/air/vrdu/datasets/cdip_v1/a_imgs.txt'
+    all_img_paths = '/home/ubuntu/air/vrdu/datasets/cdip_v1/d_imgs.txt'
     all_imgs = util.read_lines(all_img_paths)
     print('iterate dir:', dir)
-    generate_cdip_ds(dir, all_imgs)
+    generate_cdip_ds(dir, all_imgs) 
 
