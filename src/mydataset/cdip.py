@@ -37,7 +37,7 @@ class CDIP:
         if self.opt.test_small_samp>0:
             raw_ds = Dataset.from_dict(raw_ds[:self.opt.test_small_samp])    # obtain subset for experiment/debugging use
         # 2 load img obj
-        raw_ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes','size'], writer_batch_size=2_000) # load image objects
+        raw_ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes','size'], writer_batch_size=1_000) # load image objects
         # ds = ds.filter(lambda sample: sample['size'][0]>0, num_proc=os.cpu_count()) # filter those images that are failed
         return raw_ds
 

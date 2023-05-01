@@ -91,15 +91,23 @@ class BlockMaskingDataCollator(DataCollatorForLanguageModeling):
         # Iterate over each masked index
         for i, j in indices:
             # If the value at this index is not a number or is less than 2, skip it
-            value = position_ids[i][j].item()
-            if not value or value < 2:
+            curr_val = position_ids[i][j].item()
+            if not curr_val or curr_val < 2:
                 continue
             
             # Extend leftwards until we hit a non-number or a number less than 2
             for k in range(j-1, -1, -1):
                 value = position_ids[i][k].item()
-                if not value or value <=2 or j-k>5:
+                # stop conditions
+                if not value or value <2 or j-k>5:
                     break
+                elif value==2:
+                    if curr_val>2:
+                        masked_indices[i][k] = True
+                        break
+                    else:
+                        break
+                # extend
                 masked_indices[i][k] = True
             
             # Extend rightwards until we hit a non-number or a number less than or equal to 2
