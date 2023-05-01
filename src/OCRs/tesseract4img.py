@@ -16,7 +16,7 @@ def _load_image(image_path, convert=False):
         image = Image.open(image_path)
         num_img = image.n_frames
         if num_img>1:
-            print('multiple page, stip')
+            print('multiple page, skip')
             return None, (-1,-1)
             # image.seek(0)
         if convert: 
