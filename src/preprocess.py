@@ -215,7 +215,7 @@ def generate_cdip_ds(dir, all_imgs=None):
     split_imgs = _split(all_imgs,20)
 
     for i,sub_imgs in enumerate(split_imgs):
-        # if i<3: continue
+        if i==0: continue
         print(i, ' to be generated:', len(sub_imgs))
         mydataset = tesseract4img.imgs_to_dataset_generator(sub_imgs)
 

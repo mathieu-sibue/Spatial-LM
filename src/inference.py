@@ -42,7 +42,7 @@ if __name__=='__main__':
     # this is usually covered by huggingface models
     # params.output_dir = 'tmp_dir/'
     for file_path in [
-        '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b0_dataset.hf',
+        '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a0_dataset.hf',
         # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b1_dataset.hf',
         # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b2_dataset.hf',
         # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b3_dataset.hf',
@@ -57,7 +57,7 @@ if __name__=='__main__':
         print('finished infering, and prepare to write:',len(img_paths))
         for img, pred in zip(img_paths,all_preds):
             label = model.config.id2label[pred]
-            util.write_line('tmp_b.txt', img.strip() + '\t' + str(label))
+            util.write_line('tmp_a.txt', img.strip() + '\t' + str(label))
 
         print('--- end of infer for:', file_path)
 

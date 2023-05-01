@@ -10,12 +10,15 @@ from OCRs import img_util
 from datasets import Dataset, Features, Sequence, Value, Array2D, Array3D
 
 
+# skip those that have multiple pages
 def _load_image(image_path, convert=False):
     try:
         image = Image.open(image_path)
         num_img = image.n_frames
         if num_img>1:
-            image.seek(0)
+            print('multiple page, stip')
+            return None, (-1,-1)
+            # image.seek(0)
         if convert: 
             image = image.convert("RGB")
     except Exception as e:
@@ -74,7 +77,7 @@ def image_to_dict(img_paths, labels =None, tbox_norm=False):
             one_page_info['label'] = labels[idx]
 
         image, size = _load_image(image_path, convert=False)    # for OCR you dont convert, for model features, you convert;
-        if not image or size[0]<0: continue
+        if not image or size[0]<=0: continue
 
         one_page_info['size'] = size
 
