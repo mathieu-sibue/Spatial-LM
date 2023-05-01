@@ -535,22 +535,22 @@ class LayoutLMv3Encoder(nn.Module):
         self.has_relative_attention_bias = config.has_relative_attention_bias
         self.has_spatial_attention_bias = config.has_spatial_attention_bias
 
-        self.linear_attention = nn.Sequential(nn.Linear(11,11),
-                                nn.ReLU(),
-                                nn.Linear(11,1)
-                                )
+        # self.linear_attention = nn.Sequential(nn.Linear(11,11),
+        #                         nn.ReLU(),
+        #                         nn.Linear(11,1)
+        #                         )
 
-        self.sp_query = nn.Linear(5632, 512)    # 512*11 -> 512
-        self.sp_key = nn.Linear(5632, 512)
-        self.sp_value = nn.Linear(5632,512)
-        self.softmax = nn.Softmax(dim=-1)   # or 2
+        # self.sp_query = nn.Linear(5632, 512)    # 512*11 -> 512
+        # self.sp_key = nn.Linear(5632, 512)
+        # self.sp_value = nn.Linear(5632,512)
+        # self.softmax = nn.Softmax(dim=-1)   # or 2
 
-        self.sp_query_linear= nn.Linear(512,512)
-        self.sp_key_linear= nn.Linear(512,512)
-        self.sp_value_linear= nn.Linear(512,512)
+        # self.sp_query_linear= nn.Linear(512,512)
+        # self.sp_key_linear= nn.Linear(512,512)
+        # self.sp_value_linear= nn.Linear(512,512)
 
-        self.spatial_weight = nn.Parameter(torch.FloatTensor(torch.zeros(size=(9,1))))
-        self.spatial_bias = nn.Parameter(torch.FloatTensor(torch.zeros(size=(1,))))
+        # self.spatial_weight = nn.Parameter(torch.FloatTensor(torch.zeros(size=(9,1))))
+        # self.spatial_bias = nn.Parameter(torch.FloatTensor(torch.zeros(size=(1,))))
 
         if self.has_relative_attention_bias:
             self.rel_pos_bins = config.rel_pos_bins
@@ -1027,7 +1027,7 @@ class LayoutLMv3Model(LayoutLMv3PreTrainedModel):
 
         final_bbox = final_position_ids = None
         patch_height = patch_width = None
-        if pixel_values is not None:
+        if pixel_values is not None and self.config.visual_embed:
             patch_height, patch_width = int(pixel_values.shape[2] / self.config.patch_size), int(
                 pixel_values.shape[3] / self.config.patch_size
             )
