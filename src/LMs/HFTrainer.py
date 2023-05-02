@@ -106,7 +106,7 @@ class MyTrainer:
             args = training_args,
             train_dataset = trainable_ds['train'],
             eval_dataset = trainable_ds['test'],
-            compute_metrics = self.acc_and_f1,
+            compute_metrics = self.compute_metrics,
             # data_collator = data_collator,
             # config = model.config,
             # tokenizer = mydata.tokenizer

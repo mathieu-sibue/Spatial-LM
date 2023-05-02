@@ -27,6 +27,8 @@ class CDIP:
         def _load_imgs_obj(sample):
             # 1) load img obj
             sample['images'],size = self._load_image(sample['image'])
+            if not sample['images'] or not sample['tboxes']:
+                print(sample)
             # sample['size'] = size
             sample['bboxes'] = [self._normalize_bbox(bbox, sample['size']) for bbox in sample['bboxes']]
             return sample
@@ -37,7 +39,7 @@ class CDIP:
         if self.opt.test_small_samp>0:
             raw_ds = Dataset.from_dict(raw_ds[:self.opt.test_small_samp])    # obtain subset for experiment/debugging use
         # 2 load img obj
-        raw_ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes','size'], writer_batch_size=1_000) # load image objects
+        raw_ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes','size']) # load image objects, writer_batch_size=2_000
         # ds = ds.filter(lambda sample: sample['size'][0]>0, num_proc=os.cpu_count()) # filter those images that are failed
         return raw_ds
 

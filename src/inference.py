@@ -28,8 +28,8 @@ if __name__=='__main__':
     params.parse_config(args.config_file)
     params.config_file = args.config_file
 
-    # params.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    params.device = torch.device('cpu')
+    params.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    # params.device = torch.device('cpu')
     print('Using device:', params.device)
 
     # section 2, get the model
@@ -42,7 +42,7 @@ if __name__=='__main__':
     # this is usually covered by huggingface models
     # params.output_dir = 'tmp_dir/'
     for file_path in [
-        '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a0_dataset.hf',
+        '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a1_dataset.hf',
         # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b1_dataset.hf',
         # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b2_dataset.hf',
         # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b3_dataset.hf',
