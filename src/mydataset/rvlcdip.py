@@ -38,7 +38,7 @@ class RVLCDIP:
 
         # 1 load raw data
         raw_ds = load_from_disk(ds_path) # {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
-        raw_ds = Dataset.from_dict(raw_ds[2400:3500])    # obtain subset for experiment/debugging use
+        # raw_ds = Dataset.from_dict(raw_ds[2400:3500])    # obtain subset for experiment/debugging use
         # 2 load img obj and norm bboxes
         ds = raw_ds.map(_load_imgs_obj, num_proc=os.cpu_count(), remove_columns=['tboxes']) # load image objects
 
