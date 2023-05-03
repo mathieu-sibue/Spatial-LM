@@ -99,7 +99,7 @@ class BlockMaskingDataCollator(DataCollatorForLanguageModeling):
             for k in range(j-1, -1, -1):
                 value = position_ids[i][k].item()
                 # stop conditions
-                if not value or value <2 or j-k>5:
+                if not value or value <2 or j-k>3:
                     break
                 elif value==2:
                     if curr_val>2:
@@ -113,7 +113,7 @@ class BlockMaskingDataCollator(DataCollatorForLanguageModeling):
             # Extend rightwards until we hit a non-number or a number less than or equal to 2
             for k in range(j+1, len(position_ids[i])):
                 value = position_ids[i][k].item()
-                if not value or value <= 2 or k-j>5:
+                if not value or value <= 2 or k-j>3:
                     break
                 masked_indices[i][k] = True
         

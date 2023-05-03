@@ -28,6 +28,26 @@ def _load_image(image_path, convert=False):
     return image, (w, h)
 
 
+def _convert_and_save(img_obj, img_path):
+    # create new dir
+    strs = img_path.split('/')
+    dir = '/'.join(strs[:-1])
+    dir = dir.replace('cdip_v1','cdip_vx')
+    filename = strs[-1]
+    # summarize tgt path
+
+    if not os.path.exists(dir):
+        # Create a new directory because it does not exist
+        os.makedirs(dir)
+    try:
+        save_path = os.path.join(dir, filename.replace('.tif','.jpg'))
+        image = img_obj.convert("RGB")
+        image.save(save_path, "JPEG", quality=80)
+        return True
+    except Exception as e:
+        return False
+
+
 # double checked
 def doc_to_segs(one_doc):
     texts, bboxes = [], []
