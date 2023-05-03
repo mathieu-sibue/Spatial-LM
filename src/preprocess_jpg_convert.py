@@ -8,6 +8,11 @@ from utils import util
 from datasets import concatenate_datasets,load_from_disk
 
 
+def img_fix(sample):
+    sample['image'] = sample['image'].replace('cdip_v1','cdip_vx').replace('.tif','.jpg')
+    return sample
+
+
 def convert_and_save(sample):
     img_path = sample['image']
     img_obj,_ = tesseract4img._load_image(img_path)
@@ -35,8 +40,8 @@ def convert_and_save(sample):
 
 if __name__ == '__main__':
     # load dataset
-    for i in range(10):
-        ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b'+str(i)+'_dataset.hf'
+    for i in range(2,6):
+        ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a'+str(i)+'_dataset.hf'
         raw_ds = load_from_disk(ds_path)
         print(raw_ds)
         # filter dataset; 
@@ -45,3 +50,17 @@ if __name__ == '__main__':
         # save into another one
         saveto = ds_path + 'filtered'
         tgt_ds.save_to_disk(saveto)
+
+# merge dataset
+if __name__ == '__main__':
+    comb_ds = []
+    for i in range(5):
+        ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_d'+str(i)+'_dataset.hf'
+        raw_ds = load_from_disk(ds_path)
+        comb_ds.append(raw_ds)
+
+    res = 'a_comb.hf'
+    comb_ds = concatenate_datasets(comb_ds)
+    comb_ds = comb_ds.map(img_fix)
+
+    comb_ds.save_to_disk(saveto)
