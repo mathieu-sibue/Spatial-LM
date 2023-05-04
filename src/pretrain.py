@@ -40,7 +40,7 @@ if __name__=='__main__':
     # model = LMs.setup(params)
 
     # section 4, data and saving path for output model
-    params.output_dir = '/home/ubuntu/air/vrdu/output/pretrain_rvl/blm_large'
+    params.output_dir = '/home/ubuntu/air/vrdu/output/pretrain_rvl/b2m_large'
     mydata = mydataset.setup(params)
 
     # section 5, pretrain
