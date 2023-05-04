@@ -41,23 +41,24 @@ if __name__=='__main__':
     # section 3,data
     # this is usually covered by huggingface models
     # params.output_dir = 'tmp_dir/'
-    for file_path in [
-        '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a1_dataset.hf',
-        # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b1_dataset.hf',
-        # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b2_dataset.hf',
-        # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b3_dataset.hf',
-    ]:
-        print('-- prepare:', file_path)
-        params.cdip_path = file_path
-        mydata = mydataset.setup(params)
-        print('-- finished mapping, now inference:', file_path)
+    # for file_path in [
+    #     '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_a1_dataset.hf',
+    #     # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b1_dataset.hf',
+    #     # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b2_dataset.hf',
+    #     # '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_cdip_b3_dataset.hf',
+    # ]:
+    #     print('-- prepare:', file_path)
+    #     params.cdip_path = file_path
+    print('-- load raw:', params.cdip_path)
+    mydata = mydataset.setup(params)
+    print('-- finished mapping, now inference:', params.cdip_path)
 
-        # section 6, decode labels
-        img_paths,all_preds = mytrainer.inference(params, model, mydata)
-        print('finished infering, and prepare to write:',len(img_paths))
-        for img, pred in zip(img_paths,all_preds):
-            label = model.config.id2label[pred]
-            util.write_line('tmp_a.txt', img.strip() + '\t' + str(label))
+    # section 6, decode labels
+    img_paths,all_preds = mytrainer.inference(params, model, mydata)
+    print('finished infering, and prepare to write:',len(img_paths))
+    for img, pred in zip(img_paths,all_preds):
+        label = model.config.id2label[pred]
+        util.write_line('class_a.txt', img.strip() + '\t' + str(label))
 
-        print('--- end of infer for:', file_path)
+    print('--- end of infer for:', file_path)
 

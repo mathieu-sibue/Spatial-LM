@@ -15,7 +15,7 @@ class CDIP:
         assert isinstance(self.tokenizer, transformers.PreTrainedTokenizerFast) # get sub
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False) 
 
-        self.cpu_num = 1
+        self.cpu_num = os.cpu_count()
         # four maps
         ds_path = opt.cdip_path
         self.raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
@@ -26,13 +26,12 @@ class CDIP:
     def get_raw_ds(self, ds_path):
         def _load_imgs_obj(sample):
             # 1) load img obj
-            sample['images'],size = self._load_image(sample['image'])
-            if not sample['images'] or not sample['tboxes']:
-                print(sample)
-            # sample['size'] = size
+            sample['images'],_ = self._load_image(sample['image'])
+            if not sample['images']:
+                print('failed to load img:',sample)
             sample['bboxes'] = [self._normalize_bbox(bbox, sample['size']) for bbox in sample['bboxes']]
             return sample
-
+        
         # 1 load raw data
         raw_ds = load_from_disk(ds_path) # {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
         print(raw_ds)
@@ -40,7 +39,7 @@ class CDIP:
             raw_ds = Dataset.from_dict(raw_ds[:self.opt.test_small_samp])    # obtain subset for experiment/debugging use
         # 2 load img obj
         raw_ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes','size']) # load image objects, writer_batch_size=2_000
-        # ds = ds.filter(lambda sample: sample['size'][0]>0, num_proc=os.cpu_count()) # filter those images that are failed
+        # raw_ds = raw_ds.filter(lambda sample: sample['images'], num_proc=os.cpu_count()) # filter those images that are failed
         return raw_ds
 
     # overall preprocessing
@@ -86,10 +85,10 @@ class CDIP:
 
     def _load_image(self,image_path):
         try:
-            image = Image.open(image_path)
-            if image.n_frames>1:
-                image.seek(0)
-            image = image.convert("RGB")
+            image = Image.open(image_path).convert("RGB")
+            # if image.n_frames>1:
+            #     image.seek(0)
+            # image = image.convert("RGB")
             w, h = image.size
         except Exception as e:
             print('error mssg:', e)
