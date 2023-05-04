@@ -26,9 +26,10 @@ class CDIP:
     def get_raw_ds(self, ds_path):
         def _load_imgs_obj(sample):
             # 1) load img obj
-            sample['images'],_ = self._load_image(sample['image'])
-            if not sample['images']:
-                print('failed to load img:',sample)
+            # sample['images'],_ = self._load_image(sample['image'])
+            sample['images'] = None
+            # if not sample['images']:
+            #     print('failed to load img:',sample)
             sample['bboxes'] = [self._normalize_bbox(bbox, sample['size']) for bbox in sample['bboxes']]
             return sample
         
@@ -45,7 +46,7 @@ class CDIP:
     # overall preprocessing
     def get_preprocessed_ds(self,ds):
         features = Features({
-                'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
+                # 'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
                 'input_ids': Sequence(feature=Value(dtype='int64')),
                 'position_ids': Sequence(feature=Value(dtype='int64')),
                 'attention_mask': Sequence(Value(dtype='int64')),
@@ -55,7 +56,7 @@ class CDIP:
                 })
         def _preprocess(batch):
             # 1) encode words and imgs
-            encodings = self.processor(images=batch['images'],text=batch['tokens'], boxes=batch['bboxes'],
+            encodings = self.processor(text=batch['tokens'], boxes=batch['bboxes'],
                 truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
             # 2) add position_ids
             position_ids = []
@@ -84,16 +85,19 @@ class CDIP:
 # find . -maxdepth 3 -type f -name "*.tif" | wc -l
 
     def _load_image(self,image_path):
-        try:
-            image = Image.open(image_path).convert("RGB")
-            # if image.n_frames>1:
-            #     image.seek(0)
-            # image = image.convert("RGB")
-            w, h = image.size
-        except Exception as e:
-            print('error mssg:', e)
-            return None, (-1,-1)
+        image = Image.open(image_path).convert("RGB")
+        w, h = image.size
         return image, (w, h)
+        # try:
+        #     image = Image.open(image_path).convert("RGB")
+        #     # if image.n_frames>1:
+        #     #     image.seek(0)
+        #     # image = image.convert("RGB")
+        #     w, h = image.size
+        # except Exception as e:
+        #     print('error mssg:', e)
+        #     return None, (-1,-1)
+        # return image, (w, h)
 
     def _normalize_bbox(self, bbox, size):
         return [

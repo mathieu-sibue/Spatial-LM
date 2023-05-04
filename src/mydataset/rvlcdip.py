@@ -17,11 +17,23 @@ class RVLCDIP:
 
         # four maps
         dataset_list = []
-        for i in range(10):
-            ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl'+str(i)+'_dataset.hf'
-            raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
-            processed_ds = self.get_preprocessed_ds(raw_ds) # get trainable ds
-            dataset_list.append(processed_ds)
+        if bool(opt.rvl_full):
+            for i in range(8):
+                ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_rvl_train'+str(i)+'_dataset.hf'
+                raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
+                processed_ds = self.get_preprocessed_ds(raw_ds) # get trainable ds
+                dataset_list.append(processed_ds)
+            for i in range(5):
+                ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_rvl_val'+str(i)+'_dataset.hf'
+                raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
+                processed_ds = self.get_preprocessed_ds(raw_ds) # get trainable ds
+                dataset_list.append(processed_ds)
+        else:
+            for i in range(10):
+                ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl'+str(i)+'_dataset.hf'
+                raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
+                processed_ds = self.get_preprocessed_ds(raw_ds) # get trainable ds
+                dataset_list.append(processed_ds)
         self.trainable_ds = concatenate_datasets(dataset_list)
         # ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/weighted_rvl1_dataset.hf'
         # raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox

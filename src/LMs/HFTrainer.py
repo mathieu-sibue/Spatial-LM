@@ -41,8 +41,10 @@ class MyTrainer:
     def pretrain(self,opt, model, mydata):
         # mlm= True uses masked language model; otherwise, causal LM (NTP); 
         # mydata.tokenizer.pad_token = tokenizer.eos_token  # no idea why??
-        # data_collator = DataCollatorForLanguageModeling(tokenizer=mydata.tokenizer, mlm=True, mlm_probability=opt.mlm_probability)
-        data_collator = BlockMaskingDataCollator(tokenizer=mydata.tokenizer, mlm=True, mlm_probability=0.03)
+        if opt.task_type == 'mlm':
+            data_collator = DataCollatorForLanguageModeling(tokenizer=mydata.tokenizer, mlm=True, mlm_probability=opt.mlm_probability)
+        else:
+            data_collator = BlockMaskingDataCollator(tokenizer=mydata.tokenizer, mlm=True, mlm_probability=0.05)
 
         # logging_steps = len(mydata.train_dataset)  //opt.batch_size
         trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=opt.test_size)
