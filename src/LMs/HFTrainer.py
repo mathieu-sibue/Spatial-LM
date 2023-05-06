@@ -43,8 +43,8 @@ class MyTrainer:
         # mydata.tokenizer.pad_token = tokenizer.eos_token  # no idea why??
         if opt.task_type == 'mlm':
             data_collator = DataCollatorForLanguageModeling(tokenizer=mydata.tokenizer, mlm=True, mlm_probability=opt.mlm_probability)
-        else:
-            data_collator = BlockMaskingDataCollator(tokenizer=mydata.tokenizer, mlm=True, mlm_probability=0.05)
+        elif opt.task_type == 'blm':
+            data_collator = BlockMaskingDataCollator(tokenizer=mydata.tokenizer, mlm=True, mlm_probability=0.035)
 
         # logging_steps = len(mydata.train_dataset)  //opt.batch_size
         trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=opt.test_size)
