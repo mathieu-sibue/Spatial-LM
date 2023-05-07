@@ -115,7 +115,7 @@ class RVL:
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
         processed_ds = ds.map(_preprocess, batched=True, num_proc=os.cpu_count(), 
-            remove_columns=ds.column_names, features=features).with_format("torch")
+            remove_columns=ds.column_names, features=features,batch_size=16).with_format("torch")
     
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'labels', 'pixel_values']
         return processed_ds

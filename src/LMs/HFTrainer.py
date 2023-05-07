@@ -50,17 +50,17 @@ class MyTrainer:
         trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=opt.test_size)
 
         training_args = TrainingArguments(
-            output_dir = opt.output_dir,
+            output_dir = opt.checkpoint_save_path,
             num_train_epochs = opt.epochs,
             learning_rate = opt.lr,
             per_device_train_batch_size = opt.batch_size,
             per_device_eval_batch_size = opt.batch_size,
             weight_decay = 0.01,
-            warmup_ratio = 0.05,
+            warmup_ratio = 0.01,
             fp16 = True,    # make it train fast
             push_to_hub = False,
             # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
-            evaluation_strategy = "epoch",
+            evaluation_strategy = "steps",
             save_strategy="steps",  # steps, epoch
             overwrite_output_dir=True,  # use only one dir
             prediction_loss_only = True,
