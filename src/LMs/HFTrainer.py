@@ -60,7 +60,7 @@ class MyTrainer:
             fp16 = True,    # make it train fast
             push_to_hub = False,
             # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
-            evaluation_strategy = "steps",
+            evaluation_strategy = "epoch",
             save_strategy="steps",  # steps, epoch
             overwrite_output_dir=True,  # use only one dir
             prediction_loss_only = True,
