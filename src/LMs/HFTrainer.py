@@ -56,7 +56,7 @@ class MyTrainer:
             per_device_train_batch_size = opt.batch_size,
             per_device_eval_batch_size = opt.batch_size,
             weight_decay = 0.01,
-            warmup_ratio = 0.01,
+            warmup_ratio = 0.001,
             fp16 = True,    # make it train fast
             push_to_hub = False,
             # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
