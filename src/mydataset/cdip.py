@@ -78,7 +78,7 @@ class CDIP:
             return encodings
 
         processed_ds = ds.map(_preprocess,
-            batched=True, num_proc=self.cpu_num, remove_columns=ds.column_names, batch_size=16).with_format("torch")
+            batched=True, num_proc=self.cpu_num, remove_columns=ds.column_names, batch_size=100).with_format("torch")
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'pixel_values']
         return processed_ds
 

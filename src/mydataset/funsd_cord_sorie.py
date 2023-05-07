@@ -50,7 +50,7 @@ class FUNSD_CORD_SORIE:
             encodings['position_ids'] = position_ids
             return encodings
 
-        processed_ds = ds.map(_preprocess, batch_size=16,
+        processed_ds = ds.map(_preprocess, batch_size=100,
             batched=True, num_proc=os.cpu_count(), remove_columns=['tokens', 'bboxes','block_ids','images','image'])
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'pixel_values']
         return processed_ds
