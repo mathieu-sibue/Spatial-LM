@@ -124,5 +124,5 @@ if __name__=='__main__':
 
     # 4. map to find the answers (from longest to shortest)
     ans_ds = get_start_end_ds(ds)   # 
-    ans_ds = comb_ds = comb_ds.filter(ans_exists)
+    ans_ds = ans_ds.filter(ans_exists)  # filter empty answers
 
