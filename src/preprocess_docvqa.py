@@ -54,6 +54,46 @@ def generate_docvqa_ds():
         print(mydataset)
 
 
+# find the index, of the answer for raw tokens;
+def _subfinder(words_list, answer_list):  
+    # print('input words:',words_list)
+    # print('input ans:',answer_list)
+    matches = []
+    start_indices = []
+    end_indices = []
+    for idx, i in enumerate(range(len(words_list))):
+        if words_list[i] == answer_list[0] and words_list[i:i+len(answer_list)] == answer_list:
+            matches.append(answer_list)
+            start_indices.append(idx)
+            end_indices.append(idx + len(answer_list) - 1)
+    if matches:
+        return matches[0], start_indices[0], end_indices[0]
+    else:
+        return None, 0, 0
+def _raw_ans_word_idx_range(tokens, answers):
+    # Match trial 1: try to find one of the answers in the context, return first match
+    lower_tokens = [token.lower() for token in tokens]
+    answers = sorted(answers, key=len, reverse=True)    # longest to shortest
+    for answer in answers:
+        match, ans_word_idx_start, ans_word_idx_end = _subfinder(lower_tokens, answer.lower().split())
+        if match:
+            break
+    return match, ans_word_idx_start, ans_word_idx_end 
+
+def get_start_end_ds(ds):
+    def start_end_map(sammple):
+        tokens = sample['tokens']
+        answers = sample['answers']
+        match, ans_word_idx_start, ans_word_idx_end = _raw_ans_word_idx_range(tokens, answers)
+        sample['ans_token_start'] = ans_word_idx_start
+        sample['ans_token_end'] = ans_word_idx_end
+        return sample
+    ans_ds = ds.map(start_end_map,num_proc=os.cpu_count())  # remove_columns=['answers']
+    return ans_ds
+
+def ans_exists(sample):
+    return sample['ans_token_start']==0 and sample['ans_token_end']==0
+
 if __name__=='__main__':
     # load qa pairs 
     split = 'val'   # train, test, val
@@ -66,18 +106,13 @@ if __name__=='__main__':
     img_paths = []
     ans_list = []
     q_list = []
-    QA_pair_list=[]
 
     for k,val in id2trip.items():
         docID_page, question, answers = val
-        img_path = os.path.join(base, split, 'documents', docID_page +'.png')
-        
+        img_path = os.path.join(base, split, 'documents', docID_page +'.png')       
         ans_list.append(answers)
         q_list.append(question)
         img_paths.append(img_path)
-        QA_pair_list.append((question,answers))
-        # print(question,answers)
-
         if not question: continue
 
     # 2 parse imgs and generate ds
@@ -86,4 +121,8 @@ if __name__=='__main__':
 
     # 3 output
     ds.save_to_disk('val.hf')
+
+    # 4. map to find the answers (from longest to shortest)
+    ans_ds = get_start_end_ds(ds)   # 
+    ans_ds = comb_ds = comb_ds.filter(ans_exists)
 

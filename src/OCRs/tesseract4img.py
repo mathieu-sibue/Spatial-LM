@@ -109,9 +109,9 @@ def image_to_dict(img_paths, labels =None, tbox_norm=False,tesseract_wait=False,
         try:
             myconfig = r'--psm 11 --oem 3'
             if tesseract_wait:
-                data = pytesseract.image_to_data(image, config=myconfig, output_type='dict', timeout=20) # 2/3s
+                data = pytesseract.image_to_data(image, config=myconfig, output_type='dict', timeout=30) # 2/3s
             else:
-                data = pytesseract.image_to_data(image, config=myconfig, output_type='dict', timeout=2) # 2/3s
+                data = pytesseract.image_to_data(image, config=myconfig, output_type='dict', timeout=20) # 2/3s
         except RuntimeError as timeout_error:
             print(timeout_error)
             print('img:', image_path)
