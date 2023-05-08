@@ -1,5 +1,6 @@
 import os
-
+import json
+from OCRs import tesseract4img
 
 def get_imgs_dfs(dir, suffix = 'png'):
     res = []
@@ -17,7 +18,7 @@ def get_imgs_dfs(dir, suffix = 'png'):
 
 def get_question_pairs(base,split='val'):
     # from json of questions and answers
-    file_path = os.path.join(base, split+'_v1.0.json')
+    file_path = os.path.join(base, split, split+'_v1.0.json')
     
     with open(file_path) as fr:
         data = json.load(fr)
@@ -55,12 +56,34 @@ def generate_docvqa_ds():
 
 if __name__=='__main__':
     # load qa pairs 
-    split = 'val'
-
+    split = 'val'   # train, test, val
+    base = '/home/ubuntu/air/vrdu/datasets/docvqa'
     # 1 load all QA pairs 
-    id2trip = get_question_pairs(base,split)
+    id2trip = get_question_pairs(base,split)    
+
+    cnt = 0
+
+    img_paths = []
+    ans_list = []
+    q_list = []
+    QA_pair_list=[]
+
+    for k,val in id2trip.items():
+        docID_page, question, answers = val
+        img_path = os.path.join(base, split, 'documents', docID_page +'.png')
+        
+        ans_list.append(answers)
+        q_list.append(question)
+        img_paths.append(img_path)
+        QA_pair_list.append((question,answers))
+        # print(question,answers)
+
+        if not question: continue
 
     # 2 parse imgs and generate ds
+    ds = tesseract4img.imgs_to_dataset_generator(img_paths,labels=None, tesseract_wait=True, questions = q_list, answers = ans_list)
+    print(ds)
 
-    # 3 merge the ds into datasets; -> merge train and val
+    # 3 output
+    ds.save_to_disk('val.hf')
 

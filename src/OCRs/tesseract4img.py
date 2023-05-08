@@ -81,13 +81,14 @@ def doc_to_segs(one_doc):
     return texts, bboxes, word_nums
 
 # prepare dataset dict 1.2: images to dataset
-def imgs_to_dataset_generator(img_paths, labels=None):
-    dataset = Dataset.from_generator(image_to_dict, gen_kwargs={'img_paths': img_paths, 'labels':labels})
+def imgs_to_dataset_generator(img_paths, labels=None, tesseract_wait=False, **kwargs):
+    dataset = Dataset.from_generator(image_to_dict, gen_kwargs={'img_paths': img_paths, 'labels':labels, **kwargs})
     return dataset
 
 
 # prepare dataset dict 1.1: image to basic dict info
-def image_to_dict(img_paths, labels =None, tbox_norm=False):
+def image_to_dict(img_paths, labels =None, tbox_norm=False,tesseract_wait=False,**other_params):
+    print('wait?', tesseract_wait)
     '''
     rtype: return one_doc, where the bbox and h/w are normalized to 1000*1000
     '''
@@ -96,6 +97,10 @@ def image_to_dict(img_paths, labels =None, tbox_norm=False):
         if labels:
             one_page_info['label'] = labels[idx]
 
+        # append other params
+        for key,val in other_params.items():
+            one_page_info[key] = val[idx]
+
         image, size = _load_image(image_path, convert=False)    # for OCR you dont convert, for model features, you convert;
         if not image or size[0]<=0: continue
 
@@ -103,12 +108,17 @@ def image_to_dict(img_paths, labels =None, tbox_norm=False):
 
         try:
             myconfig = r'--psm 11 --oem 3'
-            data = pytesseract.image_to_data(image, config=myconfig, output_type='dict', timeout=2) # 2/3s
+            if tesseract_wait:
+                data = pytesseract.image_to_data(image, config=myconfig, output_type='dict', timeout=20) # 2/3s
+            else:
+                data = pytesseract.image_to_data(image, config=myconfig, output_type='dict', timeout=2) # 2/3s
         except RuntimeError as timeout_error:
             print(timeout_error)
+            print('img:', image_path)
             continue
         except:
             print("Something else went wrong")
+            print('img:', image_path)
             continue
 
         # print(data)
