@@ -32,7 +32,7 @@ class DocVQA:
         # for each one_doc = {'tokens':[],'bboxes':[],'widths':[],'heights':[], 'seg_ids':[],'image':None}
         
         if bool(opt.inference_only):
-            test_id2qa, test_id2doc = self._load_pickle(self.opt.docvqa_pickles + self.test_split+'.pickle')
+            test_id2qa, test_id2doc = self._load_pickle(self.opt.docvqa_pickles + 'test.pickle')
             raw_test = self.get_raw_ds('test',test_id2qa, test_id2doc)
             self.trainable_test_ds = self.get_trainable_dataset('test')
         else:
@@ -40,19 +40,21 @@ class DocVQA:
             val_id2qa, val_id2doc = self._load_pickle(self.opt.docvqa_pickles + 'val.pickle')
             raw_train = self.get_raw_ds('train',train_id2qa, train_id2doc)
             raw_val = self.get_raw_ds('val',val_id2qa, val_id2doc)
-            self.trainable_train_ds = self.get_trainable_dataset('train')
-            self.trainable_val_ds = self.get_trainable_dataset('val')
+            trainable_train_ds = self.get_trainable_dataset('train')
+            trainable_val_ds = self.get_trainable_dataset('val')
             # concatenate 
-
+            self.trainable_ds = concatenate_datasets([trainable_train_ds,trainable_val_ds])
 
     # 1.1. raw dataset wrap
     def get_raw_ds(self,split, id2qa,id2doc):
-        return Dataset.from_dict(self._load_qa_pairs(split,id2qa, id2doc))
+        # return Dataset.from_dict(self._load_qa_pairs(split,id2qa, id2doc))
+        raw_ds = Dataset.from_generator(self._load_qa_pairs, gen_kwargs={'split':split, 'id2qa':id2qa, 'id2doc':id2doc})
+        return raw_ds
 
     # 1.2. raw dataset generator
     def _load_qa_pairs(self,split, id2qa,id2doc):
         qIDs = list(id2qa.keys())
-
+        # already normalized box, and the pixel values extracted
         res_dict = {"qID": [],'question':[], 'answers': [], "words": [], "boxes": [],
                          "image_pixel_values": [], 
                          'ans_start':[], 'ans_end':[]}
@@ -73,11 +75,12 @@ class DocVQA:
             res_dict['image_pixel_values'].append(doc['image'])
             res_dict['ans_start'].append(ans_word_idx_start)
             res_dict['ans_end'].append(ans_word_idx_end)
-        return res_dict
+
+            yield res_dict
 
 
     # 2.1 wrap mapped features
-    def get_trainable_dataset(self,split='train',shuffle=True):
+    def get_trainable_dataset(self,ds):
         '''
         return sth like:
         Dataset({
@@ -85,9 +88,7 @@ class DocVQA:
             num_rows: 50
         })
         '''
-        # 1. data split return self.prepare_one_doc(self.dataset[split])
-        dataset = self.train_test_dataset[split]   # get split
-        # 2. feature definition (final shape to model)
+        # 1. feature definition (final shape to model)
         features = Features({
                 'questionId': Value(dtype='int64'),
                 'input_ids': Sequence(feature=Value(dtype='int64')),
@@ -97,24 +98,18 @@ class DocVQA:
                 'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
                 'ans_start_positions': Value(dtype='int64'),
                 'ans_end_positions': Value(dtype='int64'),
-                'gvect': Array2D(dtype="float32", shape=(512,32)),
             })
-        print('start mapping for', split)
-        # 3. produce dataset
-        trainable_dataset = dataset.map(
+        # 2. produce dataset
+        trainable_dataset = ds.map(
             self._prepare_one_batch,
             batched=True, 
-            batch_size = self.opt.batch_size,
-            remove_columns=dataset.column_names,    # remove original features
+            batch_size = 200,
             features = features,
-            writer_batch_size=3_000,
-            # num_proc=1, # cpu number, or set to =psutil.cpu_count(),
-            # load_from_cache=False,
+            # writer_batch_size=3_000,
+            num_proc=os.cpu_count(), # cpu number, or set to =psutil.cpu_count(),
+            remove_columns=ds.column_names,    # remove original features
         ).with_format("torch")
-        # trainable_samples = trainable_samples.set_format("torch")  # with_format is important
-        # 4. return dataset
-        # before return, we can delete data for space saving
-        del dataset # !!!!!!! not sure!!!!!
+
         return trainable_dataset
 
 
