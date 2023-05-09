@@ -1,6 +1,7 @@
 import os
 import json
 from OCRs import tesseract4img
+from datasets import load_from_disk
 
 def get_imgs_dfs(dir, suffix = 'png'):
     res = []
@@ -81,7 +82,7 @@ def _raw_ans_word_idx_range(tokens, answers):
     return match, ans_word_idx_start, ans_word_idx_end 
 
 def get_start_end_ds(ds):
-    def start_end_map(sammple):
+    def start_end_map(sample):
         tokens = sample['tokens']
         answers = sample['answers']
         match, ans_word_idx_start, ans_word_idx_end = _raw_ans_word_idx_range(tokens, answers)
@@ -95,34 +96,38 @@ def ans_exists(sample):
     return sample['ans_token_start']==0 and sample['ans_token_end']==0
 
 if __name__=='__main__':
-    # load qa pairs 
-    split = 'val'   # train, test, val
-    base = '/home/ubuntu/air/vrdu/datasets/docvqa'
-    # 1 load all QA pairs 
-    id2trip = get_question_pairs(base,split)    
+    split = 'train'   # train, test, val
 
-    cnt = 0
+    if True:
+        # load qa pairs     
+        base = '/home/ubuntu/air/vrdu/datasets/docvqa'
+        # 1 load all QA pairs 
+        id2trip = get_question_pairs(base,split)    
 
-    img_paths = []
-    ans_list = []
-    q_list = []
+        cnt = 0
 
-    for k,val in id2trip.items():
-        docID_page, question, answers = val
-        img_path = os.path.join(base, split, 'documents', docID_page +'.png')       
-        ans_list.append(answers)
-        q_list.append(question)
-        img_paths.append(img_path)
-        if not question: continue
+        img_paths = []
+        ans_list = []
+        q_list = []
 
-    # 2 parse imgs and generate ds
-    ds = tesseract4img.imgs_to_dataset_generator(img_paths,labels=None, tesseract_wait=True, questions = q_list, answers = ans_list)
-    print(ds)
+        for k,val in id2trip.items():
+            docID_page, question, answers = val
+            img_path = os.path.join(base, split, 'documents', docID_page +'.png')       
+            ans_list.append(answers)
+            q_list.append(question)
+            img_paths.append(img_path)
+            if not question: continue
 
-    # 3 output
-    ds.save_to_disk('val.hf')
+        # 2 parse imgs and generate ds
+        ds = tesseract4img.imgs_to_dataset_generator(img_paths,labels=None, tesseract_wait=True, questions = q_list, answers = ans_list)
+        print(ds)
 
-    # 4. map to find the answers (from longest to shortest)
-    ans_ds = get_start_end_ds(ds)   # 
-    ans_ds = ans_ds.filter(ans_exists)  # filter empty answers
-
+        # 3 output
+        ds.save_to_disk(split+'.hf') # 5304 samples
+    else:
+        ds = load_from_disk(split+'.hf')
+        # 4. map to find the answers (from longest to shortest)
+        ans_ds = get_start_end_ds(ds)   # 
+        ans_ds = ans_ds.filter(ans_exists)  # filter empty answers
+        print(ans_ds)
+        ans_ds.save_to_disk(split+'_ans.hf')
