@@ -14,6 +14,8 @@ def setup(opt):
         from mydataset.sorie import SORIE as MyData
     elif opt.dataset_name.lower() == 'cdip':
         from mydataset.cdip import CDIP as MyData 
+    elif opt.dataset_name.lower() == 'docvqa_ocr':
+        from mydataset.docvqa_ocr import DocVQA as MyData
 
     else:
         raise Exception('dataset not supported:{}'.format(opt.dataset_name))

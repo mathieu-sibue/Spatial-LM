@@ -14,7 +14,7 @@ import datasets
 datasets.disable_caching()
 
 class DocVQA:
-    def __init__(self,opt,start_chunk=1) -> None:    
+    def __init__(self,opt) -> None:    
         self.opt = opt
         '''
         {train, val, test}
