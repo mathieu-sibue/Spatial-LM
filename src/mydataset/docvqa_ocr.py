@@ -1,4 +1,5 @@
-from datasets import Dataset, DatasetDict,load_dataset ,Features, Sequence, Value, Array2D, Array3D
+from datasets import Dataset, DatasetDict,Features, Sequence, Value, Array2D, Array3D
+from datasets import concatenate_datasets, load_dataset
 from datasets.features import ClassLabel
 from transformers import AutoTokenizer,AutoConfig
 import transformers
@@ -9,9 +10,6 @@ import pickle
 import numpy as np
 # from transformers import RobertaTokenizer
 
-# disable caching!!
-import datasets
-datasets.disable_caching()
 
 class DocVQA:
     def __init__(self,opt) -> None:    
@@ -36,9 +34,9 @@ class DocVQA:
             raw_test = self.get_raw_ds('test',test_id2qa, test_id2doc)
             self.trainable_test_ds = self.get_trainable_dataset('test')
         else:
-            train_id2qa, train_id2doc = self._load_pickle(self.opt.docvqa_pickles + 'train.pickle')
-            val_id2qa, val_id2doc = self._load_pickle(self.opt.docvqa_pickles + 'val.pickle')
-            raw_train = self.get_raw_ds('train',train_id2qa, train_id2doc)
+            train_id2qa, train_id2doc = self._load_pickle(self.opt.docvqa_pickles + 'train.pickle') # train
+            val_id2qa, val_id2doc = self._load_pickle(self.opt.docvqa_pickles + 'val.pickle')   # val
+            raw_train = self.get_raw_ds('train',train_id2qa, train_id2doc)  
             raw_val = self.get_raw_ds('val',val_id2qa, val_id2doc)
             trainable_train_ds = self.get_trainable_dataset('train')
             trainable_val_ds = self.get_trainable_dataset('val')
