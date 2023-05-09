@@ -36,10 +36,10 @@ if __name__=='__main__':
     mydata = mydataset.setup(params)
 
     # section 3, get the model
-    model = LMs.setup(params).to(params.device)
+    # model = LMs.setup(params).to(params.device)
 
-    # # section 5, train (finetune)
-    mytrainer = MyTrainer(params)
-    mytrainer.train(params, model, mydata)
+    # # # section 5, train (finetune)
+    # mytrainer = MyTrainer(params)
+    # mytrainer.train(params, model, mydata)
 
 

@@ -401,6 +401,7 @@ class SpatialLMForSequenceClassification(SpatialLMPreTrainedModel):
         )
 
 
+
 class SpatialLMForDocVQA(SpatialLMPreTrainedModel):
     def __init__(self, opt, freeze_bert=False):
         super(SpatialLMForDocVQA, self).__init__()
@@ -443,6 +444,14 @@ class SpatialLMForDocVQA(SpatialLMPreTrainedModel):
         )
 
         return outputs
+
+        # return ModelOutput(
+        #     loss=total_loss,
+        #     start_logits=start_logits,
+        #     end_logits=end_logits,
+        #     hidden_states=outputs.hidden_states,
+        #     attentions=outputs.attentions,
+        # )
 
 
 if __name__=='__main__':

@@ -30,24 +30,27 @@ class DocVQA:
         # for each one_doc = {'tokens':[],'bboxes':[],'widths':[],'heights':[], 'seg_ids':[],'image':None}
         
         if bool(opt.inference_only):
-            test_id2qa, test_id2doc = self._load_pickle(self.opt.docvqa_pickles + 'test.pickle')
+            test_id2qa, test_id2doc = self._load_pickle(os.path.join(self.opt.docvqa_pickles + 'test.pickle'))
             raw_test = self.get_raw_ds('test',test_id2qa, test_id2doc)
-            self.trainable_test_ds = self.get_trainable_dataset('test')
+            print('raw ds:',raw_test)
+            print(raw_test[2]['block_ids'])
+            # self.trainable_test_ds = self.get_trainable_dataset(raw_test)
+            # print('trainable test:', self.trainable_test_ds)
         else:
-            train_id2qa, train_id2doc = self._load_pickle(self.opt.docvqa_pickles + 'train.pickle') # train
-            val_id2qa, val_id2doc = self._load_pickle(self.opt.docvqa_pickles + 'val.pickle')   # val
+            train_id2qa, train_id2doc = self._load_pickle(os.path.join(self.opt.docvqa_pickles + 'train.pickle')) # train
+            val_id2qa, val_id2doc = self._load_pickle(os.path.join(self.opt.docvqa_pickles + 'val.pickle'))   # val
             raw_train = self.get_raw_ds('train',train_id2qa, train_id2doc)  
             raw_val = self.get_raw_ds('val',val_id2qa, val_id2doc)
-            trainable_train_ds = self.get_trainable_dataset('train')
-            trainable_val_ds = self.get_trainable_dataset('val')
+            trainable_train_ds = self.get_trainable_dataset(raw_train)
+            trainable_val_ds = self.get_trainable_dataset(raw_val)
             # concatenate 
             self.trainable_ds = concatenate_datasets([trainable_train_ds,trainable_val_ds])
 
     # 1.1. raw dataset wrap
     def get_raw_ds(self,split, id2qa,id2doc):
-        # return Dataset.from_dict(self._load_qa_pairs(split,id2qa, id2doc))
-        raw_ds = Dataset.from_generator(self._load_qa_pairs, gen_kwargs={'split':split, 'id2qa':id2qa, 'id2doc':id2doc})
-        return raw_ds
+        return Dataset.from_dict(self._load_qa_pairs(split,id2qa, id2doc))
+        # raw_ds = Dataset.from_generator(self._load_qa_pairs, gen_kwargs={'split':split, 'id2qa':id2qa, 'id2doc':id2doc})
+        # return raw_ds
 
     # 1.2. raw dataset generator
     def _load_qa_pairs(self,split, id2qa,id2doc):
@@ -55,15 +58,29 @@ class DocVQA:
         # already normalized box, and the pixel values extracted
         res_dict = {"qID": [],'question':[], 'answers': [], "words": [], "boxes": [],
                          "image_pixel_values": [], 
-                         'ans_start':[], 'ans_end':[]}
+                         'ans_start':[], 'ans_end':[], 'block_ids':[]}
         for qID in qIDs:
+            
+
             docID_page, question, answers, ans_word_idx_start, ans_word_idx_end = id2qa[qID]
             # remove those that could not have found answers
             if bool(self.opt.filter_no_answer) and (split != 'test') and ans_word_idx_end == 0: continue
 
             # get the corresponding doc:
             # for each doc, keys = {tokens,bboxes,seg_ids,widths,heights,image }
-            doc = id2doc[docID_page]
+            doc = id2doc[docID_page]    # get doc info based on DocID
+            # res_dict = {}
+            # res_dict['qID'] = qID
+            # res_dict['question'] = question
+            # res_dict['answers'] = answers
+            # res_dict['words'] = doc['tokens']
+            # res_dict['boxes'] = doc['bboxes']
+            # res_dict['image_pixel_values'] = doc['image']
+            # res_dict['ans_start'] = ans_word_idx_start
+            # res_dict['ans_end'] = ans_word_idx_end
+            # res_dict['block_ids'] = [ seg_id+1 for seg_id in doc['seg_ids']]
+            # print(res_dict)
+            # yield res_dict
 
             res_dict['qID'].append(qID)
             res_dict['question'].append(question)
@@ -73,8 +90,9 @@ class DocVQA:
             res_dict['image_pixel_values'].append(doc['image'])
             res_dict['ans_start'].append(ans_word_idx_start)
             res_dict['ans_end'].append(ans_word_idx_end)
-
-            yield res_dict
+            res_dict['block_ids'].append([ seg_id+1 for seg_id in doc['seg_ids']])
+            # print(res_dict)
+        return res_dict
 
 
     # 2.1 wrap mapped features
@@ -90,6 +108,7 @@ class DocVQA:
         features = Features({
                 'questionId': Value(dtype='int64'),
                 'input_ids': Sequence(feature=Value(dtype='int64')),
+                'position_ids': Sequence(feature=Value(dtype='int64')),
                 'bbox': Array2D(dtype="int64", shape=(512, 4)),
                 'attention_mask': Sequence(Value(dtype='int64')),
                 'token_type_ids': Sequence(Value(dtype='int64')),
@@ -123,8 +142,15 @@ class DocVQA:
 
         # 2. encode it
         encoding = self.tokenizer(question, words, boxes, max_length=self.opt.max_seq_len, padding="max_length", truncation=True, return_token_type_ids=True)
+        # 3) add position_ids
+        position_ids = []
+        for i, block_ids in enumerate(batch['block_ids']):
+            word_ids = encodings.word_ids(i)
+            rel_pos = self._get_rel_pos(word_ids, block_ids)
+            position_ids.append(rel_pos)
+        encodings['position_ids'] = position_ids
 
-        # 3. next, add start_positions and end_positions
+        # 4. next, add start_positions and end_positions
         ans_start_positions = []
         ans_end_positions = []
         
@@ -189,7 +215,26 @@ class DocVQA:
             res = pickle.load(fr)
         return res
 
-
+    def _get_rel_pos(self,word_ids, block_ids):   # [None, 0, 1, 2, 2, 3, None]; [1,1,2,2] which is dict {word_idx: block_num}
+        res = []
+        rel_cnt = self.config.pad_token_id+1
+        prev_block = 1
+        for word_id in word_ids:
+            if word_id is None:
+                res.append(self.config.pad_token_id)
+                continue
+            else:
+                curr_block = block_ids[word_id]   # word_id is the 0,1,2,3,.. word index;
+                if curr_block != prev_block:
+                    # set back to 0; 
+                    rel_cnt = self.config.pad_token_id+1
+                    res.append(rel_cnt) # operate
+                    # reset prev_block
+                    prev_block = curr_block
+                else:
+                    res.append(rel_cnt)
+            rel_cnt+=1
+        return res
 
 if __name__ == '__main__':
     # Section 1, parse parameters

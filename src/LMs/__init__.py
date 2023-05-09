@@ -3,7 +3,7 @@
 from LMs.LayoutLM import LayoutLMTokenclassifier
 from LMs.LayoutLM import LayoutLM4DocVQA
 from LMs.Roberta import GraphRobertaTokenClassifier, RobertaTokenClassifier
-from LMs.SpatialLM import SpatialLMForMaskedLM, SpatialLMForTokenclassifier, SpatialLMConfig, SpatialLMForSequenceClassification
+from LMs.SpatialLM import SpatialLMForMaskedLM, SpatialLMForTokenclassifier, SpatialLMConfig, SpatialLMForSequenceClassification, SpatialLMForDocVQA
 from transformers import AutoConfig, AutoModel
 
 
@@ -42,6 +42,9 @@ def setup(opt):
             if not bool(opt.inference_only): # if it is train mode
                 config.num_labels, config.id2label, config.label2id = opt.num_labels, opt.id2label, opt.label2id  # set label num
             model = SpatialLMForSequenceClassification.from_pretrained(opt.checkpoint_path, config=config)
+        elif opt.task_type == 'docvqa':
+            config = SpatialLMConfig.from_pretrained(opt.checkpoint_path)
+            model = SpatialLMForDocVQA.from_pretrained(opt.checkpoint_path, config = config)
     else:
         raise Exception('model not supported:{}'.format(opt.network_type))
 
