@@ -98,7 +98,7 @@ def ans_exists(sample):
 if __name__=='__main__':
     split = 'train'   # train, test, val
 
-    if True:
+    if False:
         # load qa pairs     
         base = '/home/ubuntu/air/vrdu/datasets/docvqa'
         # 1 load all QA pairs 
@@ -125,9 +125,9 @@ if __name__=='__main__':
         # 3 output
         ds.save_to_disk(split+'.hf') # 5304 samples
     else:
-        ds = load_from_disk(split+'.hf')
+        ds = load_from_disk('/home/ubuntu/air/vrdu/datasets/docvqa/hfs/' + split+'.hf')
         # 4. map to find the answers (from longest to shortest)
         ans_ds = get_start_end_ds(ds)   # 
         ans_ds = ans_ds.filter(ans_exists)  # filter empty answers
         print(ans_ds)
-        ans_ds.save_to_disk(split+'_ans.hf')
+        ans_ds.save_to_disk('/home/ubuntu/air/vrdu/datasets/docvqa/hfs/' + split+'_ans.hf')

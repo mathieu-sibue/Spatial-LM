@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers.modeling_outputs import MaskedLMOutput,TokenClassifierOutput, SequenceClassifierOutput
+from transformers.modeling_outputs import MaskedLMOutput,TokenClassifierOutput, SequenceClassifierOutput,QuestionAnsweringModelOutput
 from typing import List, Optional, Tuple, Union
 from transformers import AutoConfig, AutoModel, AutoModelForTokenClassification, AutoModelForQuestionAnswering
 from LMs.layoutlmv3 import LayoutLMv3Model
@@ -403,12 +403,18 @@ class SpatialLMForSequenceClassification(SpatialLMPreTrainedModel):
 
 
 class SpatialLMForDocVQA(SpatialLMPreTrainedModel):
-    def __init__(self, opt, freeze_bert=False):
-        super(SpatialLMForDocVQA, self).__init__()
-        self.opt = opt
+    def __init__(self, config):
+        super(SpatialLMForDocVQA, self).__init__(config)
+        self.config = config
+        self.num_labels = config.num_labels
+
+        self.spatial_lm = LayoutLMv3Model(config)
+        self.qa_outputs = SpatialLMClassificationHead(config, pool_feature=False)
+
+        self.init_weights()
         # self.config = AutoConfig.from_pretrained(opt.spatial_lm_dir, num_labels=xxx)
         # self.spatial_lm = LayoutLMv3Model(config=self.config)
-        self.spatial_lm_token_classifier = AutoModelForQuestionAnswering.from_pretrained(opt.spatial_lm_dir)
+        # self.spatial_lm_token_classifier = AutoModelForQuestionAnswering.from_pretrained(opt.spatial_lm_dir)
 
     def forward(
         self,
@@ -425,9 +431,9 @@ class SpatialLMForDocVQA(SpatialLMPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = True,
         pixel_values: Optional[torch.LongTensor] = None,
-    ) -> Union[Tuple[torch.Tensor], MaskedLMOutput]:
+    ) -> Union[Tuple[torch.Tensor], QuestionAnsweringModelOutput]:
 
-        outputs = self.spatial_lm_token_classifier(
+        outputs = self.spatial_lm(
             input_ids,
             bbox=bbox,
             attention_mask=attention_mask,
@@ -442,9 +448,37 @@ class SpatialLMForDocVQA(SpatialLMPreTrainedModel):
             start_positions = start_positions,
             end_positions = end_positions
         )
+        sequence_output = outputs[0]
 
-        return outputs
+        logits = self.qa_outputs(sequence_output)
+        start_logits, end_logits = logits.split(1, dim=-1)
+        start_logits = start_logits.squeeze(-1).contiguous()
+        end_logits = end_logits.squeeze(-1).contiguous()
 
+        total_loss = None
+        if start_positions is not None and end_positions is not None:
+            # If we are on multi-GPU, split add a dimension
+            if len(start_positions.size()) > 1:
+                start_positions = start_positions.squeeze(-1)
+            if len(end_positions.size()) > 1:
+                end_positions = end_positions.squeeze(-1)
+            # sometimes the start/end positions are outside our model inputs, we ignore these terms
+            ignored_index = start_logits.size(1)
+            start_positions = start_positions.clamp(0, ignored_index)
+            end_positions = end_positions.clamp(0, ignored_index)
+
+            loss_fct = CrossEntropyLoss(ignore_index=ignored_index)
+            start_loss = loss_fct(start_logits, start_positions)
+            end_loss = loss_fct(end_logits, end_positions)
+            total_loss = (start_loss + end_loss) / 2
+        
+        return QuestionAnsweringModelOutput(
+            loss=total_loss,
+            start_logits=start_logits,
+            end_logits=end_logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
         # return ModelOutput(
         #     loss=total_loss,
         #     start_logits=start_logits,

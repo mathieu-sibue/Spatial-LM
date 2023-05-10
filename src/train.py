@@ -32,14 +32,16 @@ if __name__=='__main__':
 
     # section 2, objective function and output dim/ move to trainer
     # this is usually covered by huggingface models
-    params.output_dir = 'tmp_dir/'
     mydata = mydataset.setup(params)
 
     # section 3, get the model
-    # model = LMs.setup(params).to(params.device)
+    model = LMs.setup(params).to(params.device)
 
-    # # # section 5, train (finetune)
-    # mytrainer = MyTrainer(params)
-    # mytrainer.train(params, model, mydata)
+    # # section 5, train (finetune)
+    mytrainer = MyTrainer(params)
+    if params.dataset_name == 'docvqa_ocr':
+        mytrainer.train_docvqa(params, model, mydata)
+    else:
+        mytrainer.train(params, model, mydata)
 
 

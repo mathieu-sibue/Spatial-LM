@@ -46,6 +46,11 @@ class DocVQA:
             # concatenate 
             self.trainable_ds = concatenate_datasets([trainable_train_ds,trainable_val_ds])
 
+            # self.trainable_ds = DatasetDict({
+            #     "train" : trainable_train_ds , 
+            #     "test" : trainable_test_ds 
+            # })
+
     # 1.1. raw dataset wrap
     def get_raw_ds(self,split, id2qa,id2doc):
         return Dataset.from_dict(self._load_qa_pairs(split,id2qa, id2doc))

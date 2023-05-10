@@ -86,7 +86,7 @@ class MyTrainer:
         trainable_ds = mydata.trainable_ds
 
         training_args = TrainingArguments(
-            output_dir = opt.output_dir,
+            output_dir = opt.checkpoint_save_path,
             num_train_epochs = opt.epochs,
             learning_rate = opt.lr,
             per_device_train_batch_size = opt.batch_size,
@@ -109,6 +109,44 @@ class MyTrainer:
             train_dataset = trainable_ds['train'],
             eval_dataset = trainable_ds['test'],
             compute_metrics = self.compute_metrics,
+            # data_collator = data_collator,
+            # config = model.config,
+            # tokenizer = mydata.tokenizer
+        )
+        trainer.train()
+        if bool(self.opt.save_model):
+            trainer.save_model(opt.save_path)
+
+    def train_docvqa(self,opt, model, mydata):
+        # mlm= True uses masked language model; otherwise, causal LM (NTP); 
+        # logging_steps = len(mydata.train_dataset)  //opt.batch_size
+        # split into smaller 
+        trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=opt.test_size)
+
+
+        training_args = TrainingArguments(
+            output_dir = opt.checkpoint_save_path,
+            num_train_epochs = opt.epochs,
+            learning_rate = opt.lr,
+            per_device_train_batch_size = opt.batch_size,
+            per_device_eval_batch_size = opt.batch_size,
+            # weight_decay = 0.01,
+            # warmup_ratio = 0.05,
+            fp16 = True,    # make it train fast
+            push_to_hub = False,
+            # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
+            evaluation_strategy = "epoch",
+            save_strategy="epoch",  # no, epoch, steps
+            overwrite_output_dir=True,  # use only one dir
+            prediction_loss_only = True,
+            # logging_dir='./logs',  
+            # save_steps=5000,
+        )
+        trainer = Trainer(
+            model = model,
+            args = training_args,
+            train_dataset = trainable_ds['train'],
+            eval_dataset = trainable_ds['test'],
             # data_collator = data_collator,
             # config = model.config,
             # tokenizer = mydata.tokenizer
