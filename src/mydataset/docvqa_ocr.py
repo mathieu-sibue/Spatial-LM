@@ -138,14 +138,18 @@ class DocVQA:
         boxes = batch['boxes']
         ans_starts = batch['ans_start']
         ans_ends = batch['ans_end']
+        block_ids = batch['block_ids']
+
+        # assert len(answers) == len(question) == len(block_ids) == len(ans_starts)
 
         # 2. encode it
         encoding = self.tokenizer(question, words, boxes, max_length=self.opt.max_seq_len, padding="max_length", truncation=True, return_token_type_ids=True)
         # 3) add position_ids
         position_ids = []
-        for i, block_ids in enumerate(batch['block_ids']):
+        for i, b_ids in enumerate(block_ids):
             word_ids = encoding.word_ids(i)
-            rel_pos = self._get_rel_pos(word_ids, block_ids)
+            sequence_ids = encoding.sequence_ids(i)
+            rel_pos = self._get_rel_pos(word_ids, b_ids,sequence_ids)
             position_ids.append(rel_pos)
         encoding['position_ids'] = position_ids
 
@@ -214,11 +218,23 @@ class DocVQA:
             res = pickle.load(fr)
         return res
 
-    def _get_rel_pos(self,word_ids, block_ids):   # [None, 0, 1, 2, 2, 3, None]; [1,1,2,2] which is dict {word_idx: block_num}
+    def _get_rel_pos(self,word_ids, block_ids,sequence_ids):   # [None, 0, 1, 2, 2, 3, None]; [1,1,2,2] which is dict {word_idx: block_num}
         res = []
         rel_cnt = self.config.pad_token_id+1
         prev_block = 1
-        for word_id in word_ids:
+
+        # Start token index of the current span in the text.
+        left = 0
+        while sequence_ids[left] != 1:
+            left += 1
+            res.append(left+1)  # from 2 on for questions as well;
+        # # End token index of the current span in the text.
+        # right = len(batch_encoding.input_ids[batch_index]) - 1
+        # while sequence_ids[right] != 1:
+        #     right -= 1
+
+        for i in range(left,len(word_ids)):
+            word_id = word_ids[i]
             if word_id is None:
                 res.append(self.config.pad_token_id)
                 continue

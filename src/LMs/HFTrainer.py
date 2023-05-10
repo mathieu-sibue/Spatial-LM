@@ -121,7 +121,7 @@ class MyTrainer:
         # mlm= True uses masked language model; otherwise, causal LM (NTP); 
         # logging_steps = len(mydata.train_dataset)  //opt.batch_size
         # split into smaller 
-        trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=opt.test_size)
+        trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=0.001)
 
 
         training_args = TrainingArguments(
