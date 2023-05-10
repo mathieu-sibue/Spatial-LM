@@ -445,8 +445,6 @@ class SpatialLMForDocVQA(SpatialLMPreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             pixel_values=pixel_values,
-            start_positions = start_positions,
-            end_positions = end_positions
         )
         sequence_output = outputs[0]
 
