@@ -29,7 +29,7 @@ if __name__=='__main__':
     params.config_file = args.config_file
 
     params.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    params.device = torch.device('cpu')
+    # params.device = torch.device('cpu')
     print('Using device:', params.device)
 
     # section 2, get the model
@@ -65,6 +65,6 @@ if __name__=='__main__':
 
 
     # section 7, QA infering and output data
-    myinferencer.inference_for_QA(model,mydata,'docvqa.json')
+    myinferencer.inference_for_QA(model,mydata,'docvqa_2.json')
 
 

@@ -34,7 +34,7 @@ class MyInferencer:
     def inference_for_QA(self, model, mydata, save_to_file):
         # 1 load dataset
         # test_dataset = mydata.test_dataset
-        loader_test = DataLoader(mydata.test_ds, batch_size=self.opt.batch_size*5)
+        loader_test = DataLoader(mydata.test_ds, batch_size=self.opt.batch_size*2)
 
         model.eval()
         res = []
