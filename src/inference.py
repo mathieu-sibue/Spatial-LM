@@ -10,7 +10,7 @@ import pickle
 from utils.params import Params
 # from torch_geometric.transforms import NormalizeFeatures
 import mydataset
-from LMs.HFTrainer import MyTrainer
+from LMs.myinferencer import MyInferencer
 import LMs
 from utils import util
 
@@ -29,14 +29,14 @@ if __name__=='__main__':
     params.config_file = args.config_file
 
     params.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    # params.device = torch.device('cpu')
+    params.device = torch.device('cpu')
     print('Using device:', params.device)
 
     # section 2, get the model
     model = LMs.setup(params).to(params.device)
 
     #section 3, trainer
-    mytrainer = MyTrainer(params)
+    # mytrainer = MyTrainer(params)
 
     # section 3,data
     # this is usually covered by huggingface models
@@ -49,16 +49,22 @@ if __name__=='__main__':
     # ]:
     #     print('-- prepare:', file_path)
     #     params.cdip_path = file_path
-    print('-- load raw:', params.cdip_path)
+    # print('-- load raw:', params.cdip_path)
     mydata = mydataset.setup(params)
-    print('-- finished mapping, now inference:', params.cdip_path)
+    # print('-- finished mapping, now inference:', params.cdip_path)
 
-    # section 6, decode labels
-    img_paths,all_preds = mytrainer.inference(params, model, mydata)
-    print('finished infering, and prepare to write:',len(img_paths))
-    for img, pred in zip(img_paths,all_preds):
-        label = model.config.id2label[pred]
-        util.write_line('class_a.txt', img.strip() + '\t' + str(label))
+    myinferencer = MyInferencer(params)
 
-    print('--- end of infer for:', file_path)
+    # section 6, classifying and decoding labels
+    # img_paths,all_preds = myinferencer.inference_for_classification(params, model, mydata)
+    # print('finished infering, and prepare to write:',len(img_paths))
+    # for img, pred in zip(img_paths,all_preds):
+    #     label = model.config.id2label[pred]
+    #     util.write_line('class_a.txt', img.strip() + '\t' + str(label))
+    # print('--- end of infer for:', file_path)
+
+
+    # section 7, QA infering and output data
+    myinferencer.inference_for_QA(model,mydata,'docvqa.json')
+
 

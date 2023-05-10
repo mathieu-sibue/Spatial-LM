@@ -32,7 +32,7 @@ class DocVQA:
         if bool(opt.inference_only):
             test_id2qa, test_id2doc = self._load_pickle(os.path.join(self.opt.docvqa_pickles + 'test.pickle'))
             raw_test = self.get_raw_ds('test',test_id2qa, test_id2doc)
-            # self.trainable_test_ds = self.get_trainable_dataset(raw_test)
+            self.test_ds = self.get_trainable_dataset(raw_test)
             # print('trainable test:', self.trainable_test_ds)
         else:
             train_id2qa, train_id2doc = self._load_pickle(os.path.join(self.opt.docvqa_pickles + 'train.pickle')) # train
@@ -81,6 +81,7 @@ class DocVQA:
             res_dict['ans_start'] = ans_word_idx_start
             res_dict['ans_end'] = ans_word_idx_end
             res_dict['block_ids'] = [ seg_id+1 for seg_id in doc['seg_ids']]
+
             yield res_dict
 
         #     res_dict['qID'].append(qID)
@@ -113,8 +114,8 @@ class DocVQA:
                 'attention_mask': Sequence(Value(dtype='int64')),
                 'token_type_ids': Sequence(Value(dtype='int64')),
                 'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
-                'ans_start_positions': Value(dtype='int64'),
-                'ans_end_positions': Value(dtype='int64'),
+                'start_positions': Value(dtype='int64'),
+                'end_positions': Value(dtype='int64'),
             })
         # 2. produce dataset
         trainable_dataset = ds.map(
@@ -178,8 +179,8 @@ class DocVQA:
                 # print("-----------")
 
         # 3.3 append the ans_start, ans_end_index
-        encoding['ans_start_positions'] = ans_start_positions
-        encoding['ans_end_positions'] = ans_end_positions
+        encoding['start_positions'] = ans_start_positions
+        encoding['end_positions'] = ans_end_positions
         # 4 append the rest features
         encoding['pixel_values'] = batch['image_pixel_values']   # sometimes, it needs to change it into open Image !!!!!
         encoding['questionId'] = batch['qID']
