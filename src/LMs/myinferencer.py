@@ -34,7 +34,7 @@ class MyInferencer:
     def inference_for_QA(self, model, mydata, save_to_file):
         # 1 load dataset
         # test_dataset = mydata.test_dataset
-        loader_test = DataLoader(mydata.test_ds, batch_size=self.opt.batch_size*2)
+        loader_test = DataLoader(mydata.test_ds, batch_size=self.opt.batch_size*3)
 
         model.eval()
         res = []
@@ -71,10 +71,10 @@ class MyInferencer:
                     res.append({"questionId":questionId[idx].item(), "answer":answer})
         # save it
         res = json.dumps(res)
-        save_res(save_to_file,res)
+        self.save_res(save_to_file,res)
         return res
 
-    def save_res(path,performance_str):
+    def save_res(self,path,performance_str):
         with open(path, 'w') as f:
             f.write(str(performance_str))
 

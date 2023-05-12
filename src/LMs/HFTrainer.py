@@ -17,6 +17,7 @@ class MyTrainer:
         self.opt = opt
 
     def pretrain(self,opt, model, mydata):
+
         # mlm= True uses masked language model; otherwise, causal LM (NTP); 
         # mydata.tokenizer.pad_token = tokenizer.eos_token  # no idea why??
         if opt.task_type == 'mlm':
@@ -43,6 +44,9 @@ class MyTrainer:
             overwrite_output_dir=True,  # use only one dir
             prediction_loss_only = True,
             logging_dir='./logs',  
+            log_level = 'info', # ‘debug’, ‘info’, ‘warning’, ‘error’ and ‘critical’, 
+            logging_strategy = 'epoch', # epoch, step, no
+
             save_steps=2000,
         )
         trainer = Trainer(
@@ -75,12 +79,15 @@ class MyTrainer:
             push_to_hub = False,
             # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
             evaluation_strategy = "epoch",
-            save_strategy="epoch",  # no, epoch, steps
+            save_strategy="no",  # no, epoch, steps
             overwrite_output_dir=True,  # use only one dir
             # prediction_loss_only = True,
-            # logging_dir='./logs',  
+            logging_dir='./logs',  
+            log_level = 'info', # ‘debug’, ‘info’, ‘warning’, ‘error’ and ‘critical’, 
+            logging_strategy = 'epoch', # epoch, step, no
             # save_steps=5000,
         )
+
         trainer = Trainer(
             model = model,
             args = training_args,

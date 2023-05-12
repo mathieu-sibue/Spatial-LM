@@ -65,6 +65,6 @@ if __name__=='__main__':
 
 
     # section 7, QA infering and output data
-    myinferencer.inference_for_QA(model,mydata,'docvqa_2.json')
+    myinferencer.inference_for_QA(model,mydata,'docvqa_3.json')
 
 

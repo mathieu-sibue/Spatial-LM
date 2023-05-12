@@ -535,10 +535,10 @@ class LayoutLMv3Encoder(nn.Module):
         self.has_relative_attention_bias = config.has_relative_attention_bias
         self.has_spatial_attention_bias = config.has_spatial_attention_bias
 
-        # self.linear_attention = nn.Sequential(nn.Linear(11,11),
-        #                         nn.ReLU(),
-        #                         nn.Linear(11,1)
-        #                         )
+        self.linear_attention = nn.Sequential(nn.Linear(11,8),
+                                nn.ReLU(),
+                                nn.Linear(8,1)
+                                )
 
         # self.sp_query = nn.Linear(5632, 512)    # 512*11 -> 512
         # self.sp_key = nn.Linear(5632, 512)
@@ -703,7 +703,7 @@ class LayoutLMv3Encoder(nn.Module):
         # step3: re-shape
         scalarized_nn = scalarized_nn.squeeze(-1).view(bshape[0], 512, 512) # [2,512,512]
         # normalize and reorganize
-        scalarized_nn = self.softmax(scalarized_nn)
+        # scalarized_nn = self.softmax(scalarized_nn)
         # attention_matrix = self.sp_query_linear(attention_matrix)   #   linear transformation
 
 
@@ -713,7 +713,7 @@ class LayoutLMv3Encoder(nn.Module):
         # print('size3:', scalarized_nn[0][0])   # [2, 709, 709]
         
         # step4: repeatly copy into 12 heads
-        final_matrix = target.unsqueeze(1).repeat(1,12,1,1) 
+        final_matrix = target.unsqueeze(1).repeat(1,16,1,1) 
         # print('size4:', final_matrix.size())    # [2, 12, 709, 709]
         return final_matrix
 
@@ -764,9 +764,13 @@ class LayoutLMv3Encoder(nn.Module):
         all_self_attentions = () if output_attentions else None
 
         rel_pos = self._cal_1d_pos_emb(hidden_states, position_ids) if self.has_relative_attention_bias else None
-        rel_2d_pos = self._cal_2d_pos_emb(hidden_states, bbox) if self.has_spatial_attention_bias else None
-        # rel_2d_pos = self._cal_2d_spatial_sa(spatial_matrix,bbox, device)
-        # rel_2d_pos = self._cal_2d_spatial_attention(spatial_matrix, bbox, device)
+        
+        if bool(self.config.spatial_attention):
+            rel_2d_pos = self._cal_2d_spatial_attention(spatial_matrix, bbox, device)
+            # rel_2d_pos = self._cal_2d_spatial_sa(spatial_matrix,bbox, device)
+        else:
+            rel_2d_pos = self._cal_2d_pos_emb(hidden_states, bbox) if self.has_spatial_attention_bias else None
+        
         for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
