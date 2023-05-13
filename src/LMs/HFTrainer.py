@@ -79,7 +79,7 @@ class MyTrainer:
             push_to_hub = False,
             # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
             evaluation_strategy = "epoch",
-            save_strategy="no",  # no, epoch, steps
+            save_strategy="epoch",  # no, epoch, steps
             overwrite_output_dir=True,  # use only one dir
             # prediction_loss_only = True,
             logging_dir='./logs',  
