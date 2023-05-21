@@ -535,9 +535,9 @@ class LayoutLMv3Encoder(nn.Module):
         self.has_relative_attention_bias = config.has_relative_attention_bias
         self.has_spatial_attention_bias = config.has_spatial_attention_bias
 
-        self.linear_attention = nn.Sequential(nn.Linear(11,8),
+        self.linear_attention = nn.Sequential(nn.Linear(11,11),
                                 nn.ReLU(),
-                                nn.Linear(8,1)
+                                nn.Linear(11,1)
                                 )
 
         # self.sp_query = nn.Linear(5632, 512)    # 512*11 -> 512

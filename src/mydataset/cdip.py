@@ -17,19 +17,24 @@ class CDIP:
 
         self.cpu_num = os.cpu_count()
         # four maps
-        ds_path = opt.cdip_path
-        self.raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
-        self.trainable_ds = self.get_preprocessed_ds(self.raw_ds) # get trainable ds
+        folder = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/'
+        ds_list = []
+        for ds_name in ['full_cdip_comb_a_7w.hf']: # ,'full_cdip_comb_b_5.6w.hf']: #,'full_cdip_comb_c_5w.hf','full_cdip_comb_d_6.6w.hf']:
+            ds_path = os.path.join(folder,ds_name)
+            raw_ds = self.get_raw_ds(ds_path)   # 1) load raw_ds; 2) load imgs; 3) norm bbox
+            processed_ds = self.get_preprocessed_ds(raw_ds) # get trainable ds
+            ds_list.append(processed_ds)
+        self.trainable_ds = concatenate_datasets(ds_list)
 
 
     # load raw dataset (including image object)
     def get_raw_ds(self, ds_path):
         def _load_imgs_obj(sample):
             # 1) load img obj
-            # sample['images'],_ = self._load_image(sample['image'])
-            sample['images'] = None
-            # if not sample['images']:
-            #     print('failed to load img:',sample)
+            sample['images'],_ = self._load_image(sample['image'])
+            # sample['images'] = None
+            if not sample['images']:
+                print('failed to load img:',sample)
             sample['bboxes'] = [self._normalize_bbox(bbox, sample['size']) for bbox in sample['bboxes']]
             return sample
         
@@ -40,23 +45,25 @@ class CDIP:
             raw_ds = Dataset.from_dict(raw_ds[:self.opt.test_small_samp])    # obtain subset for experiment/debugging use
         # 2 load img obj
         raw_ds = raw_ds.map(_load_imgs_obj, num_proc=self.cpu_num, remove_columns=['tboxes','size']) # load image objects, writer_batch_size=2_000
-        # raw_ds = raw_ds.filter(lambda sample: sample['images'], num_proc=os.cpu_count()) # filter those images that are failed
+        print('start-filter')
+        raw_ds = raw_ds.filter(lambda sample: sample['images'] is not None, num_proc=os.cpu_count()) # filter those images that are failed
+        print('---end filter---')
         return raw_ds
 
     # overall preprocessing
     def get_preprocessed_ds(self,ds):
         features = Features({
-                # 'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
+                'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
                 'input_ids': Sequence(feature=Value(dtype='int64')),
                 'position_ids': Sequence(feature=Value(dtype='int64')),
                 'attention_mask': Sequence(Value(dtype='int64')),
                 'bbox': Array2D(dtype="int64", shape=(512, 4)),
                 # 'spatial_matrix': Array3D(dtype='float32', shape=(512, 512, 11)),     # 
-                # 'labels': Sequence(feature=Value(dtype='int64')),
+                'labels': Sequence(feature=Value(dtype='int64')),
                 })
         def _preprocess(batch):
             # 1) encode words and imgs
-            encodings = self.processor(text=batch['tokens'], boxes=batch['bboxes'],
+            encodings = self.processor(images=batch['images'], text=batch['tokens'], boxes=batch['bboxes'],
                 truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
             # 2) add position_ids
             position_ids = []
@@ -78,26 +85,27 @@ class CDIP:
             return encodings
 
         processed_ds = ds.map(_preprocess,
-            batched=True, num_proc=self.cpu_num, remove_columns=ds.column_names, batch_size=100).with_format("torch")
+            batched=True, num_proc=self.cpu_num, remove_columns=ds.column_names, batch_size=32).with_format("torch")
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'pixel_values']
         return processed_ds
 
-# find . -maxdepth 3 -type f -name "*.tif" | wc -l
 
     def _load_image(self,image_path):
-        image = Image.open(image_path).convert("RGB")
-        w, h = image.size
-        return image, (w, h)
-        # try:
-        #     image = Image.open(image_path).convert("RGB")
-        #     # if image.n_frames>1:
-        #     #     image.seek(0)
-        #     # image = image.convert("RGB")
-        #     w, h = image.size
-        # except Exception as e:
-        #     print('error mssg:', e)
-        #     return None, (-1,-1)
+        # image = Image.open(image_path)
+        # w, h = image.size
         # return image, (w, h)
+        try:
+            image = Image.open(image_path)
+            # if image.n_frames>1:
+            #     image.seek(0)
+            # image = image.convert("RGB")
+            w, h = image.size
+        except Exception as e:
+            print('error mssg:', e)
+            return None, (-1,-1)
+        except:
+            return None, (-1,-1)
+        return image, (w, h)
 
     def _normalize_bbox(self, bbox, size):
         return [
