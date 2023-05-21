@@ -765,11 +765,11 @@ class LayoutLMv3Encoder(nn.Module):
 
         rel_pos = self._cal_1d_pos_emb(hidden_states, position_ids) if self.has_relative_attention_bias else None
         
-        if bool(self.config.spatial_attention):
-            rel_2d_pos = self._cal_2d_spatial_attention(spatial_matrix, bbox, device)
-            # rel_2d_pos = self._cal_2d_spatial_sa(spatial_matrix,bbox, device)
-        else:
-            rel_2d_pos = self._cal_2d_pos_emb(hidden_states, bbox) if self.has_spatial_attention_bias else None
+        # if bool(self.config.spatial_attention):
+        #     rel_2d_pos = self._cal_2d_spatial_attention(spatial_matrix, bbox, device)
+        #     # rel_2d_pos = self._cal_2d_spatial_sa(spatial_matrix,bbox, device)
+        # else:
+        rel_2d_pos = self._cal_2d_pos_emb(hidden_states, bbox) if self.has_spatial_attention_bias else None
         
         for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
