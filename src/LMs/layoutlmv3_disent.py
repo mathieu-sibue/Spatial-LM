@@ -23,6 +23,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+from transformers.activations import gelu  # ACT2FN
+
 
 from transformers.activations import ACT2FN
 from transformers.modeling_outputs import (
@@ -30,11 +32,12 @@ from transformers.modeling_outputs import (
     QuestionAnsweringModelOutput,
     SequenceClassifierOutput,
     TokenClassifierOutput,
+    MaskedLMOutput,
 )
 from transformers.modeling_utils import PreTrainedModel
 from transformers.pytorch_utils import apply_chunking_to_forward
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
-from configuration_layoutlmv3 import LayoutLMv3Config
+from LMs.configuration_layoutlmv3 import LayoutLMv3Config
 
 
 logger = logging.get_logger(__name__)
@@ -574,7 +577,7 @@ class LayoutLMv3Layer(nn.Module):
         layer_output = apply_chunking_to_forward(
             self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, attention_output
         )
-        if self.config.spatial_attention_update::
+        if self.config.spatial_attention_update:
             layer_output_spatial = apply_chunking_to_forward(
                 self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, self_attention_outputs[1]
             )
@@ -954,7 +957,7 @@ class LayoutLMv3Model(LayoutLMv3PreTrainedModel):
             if bbox is None:
                 bbox = torch.zeros(tuple(list(input_shape) + [4]), dtype=torch.long, device=device)
 
-            embedding_output = self.embeddings(
+            embedding_output,embed_output_spatial = self.embeddings(
                 input_ids=input_ids,
                 bbox=bbox,
                 position_ids=position_ids,
@@ -1002,6 +1005,15 @@ class LayoutLMv3Model(LayoutLMv3PreTrainedModel):
 
             embedding_output = self.LayerNorm(embedding_output)
             embedding_output = self.dropout(embedding_output)
+
+            # extend spatial embeding with simple order embed!
+            if self.pos_embed is not None:
+                batch_size = embed_output_spatial.size()[0]
+                visual_pos_embed = self.pos_embed.repeat(batch_size,1,1)
+                embed_output_spatial = torch.cat([embed_output_spatial,visual_pos_embed],dim=-2)
+            else:
+                embed_output_spatial = torch.cat([embed_output_spatial,visual_embeddings],dim=-2)
+
         elif self.config.has_relative_attention_bias or self.config.has_spatial_attention_bias:
             if self.config.has_spatial_attention_bias:
                 final_bbox = bbox
@@ -1023,6 +1035,7 @@ class LayoutLMv3Model(LayoutLMv3PreTrainedModel):
 
         encoder_outputs = self.encoder(
             embedding_output,
+            embed_output_spatial,
             bbox=final_bbox,
             position_ids=final_position_ids,
             attention_mask=extended_attention_mask,
@@ -1472,16 +1485,16 @@ class LayoutLMv3Head(nn.Module):
             self.bias = self.decoder.bias
 
 
-class LayoutLMv3ForMaskedLM(DisentLMPreTrainedModel):
+class LayoutLMv3ForMaskedLM(LayoutLMv3PreTrainedModel):
     def __init__(self, config, start_dir_path=None):
         super(LayoutLMv3ForMaskedLM, self).__init__(config)
         config.has_relative_attention_bias = False
 
         # if the model is loaded the first time, we take advantage of the layoutlm
         if start_dir_path:
-            self.DisentLM = LayoutLMv3Model.from_pretrained(start_dir_path, config = config)
+            self.layoutlmv3 = LayoutLMv3Model.from_pretrained(start_dir_path, config = config)
         else:
-            self.DisentLM = LayoutLMv3Model(config)
+            self.layoutlmv3 = LayoutLMv3Model(config)
 
         self.lm_head = LayoutLMv3Head(config)
 
