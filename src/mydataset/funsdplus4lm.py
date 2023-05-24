@@ -7,7 +7,7 @@ import transformers
 from PIL import Image
 from mydataset import myds_util
 
-class FUNSD:
+class FUNSDPLUS:
     def __init__(self,opt) -> None:    
         self.opt = opt
         '''
@@ -36,6 +36,7 @@ class FUNSD:
         _,_, opt.label_list = self._get_label_map(raw_train)
         opt.num_labels = len(opt.label_list)
         self.class_label = ClassLabel(num_classes=opt.num_labels, names = opt.label_list)
+        print(self.class_label)
         '''
         {0: 'B-ANSWER', 1: 'B-HEADER', 2: 'B-QUESTION', 3: 'I-ANSWER', 4: 'I-HEADER', 5: 'I-QUESTION', 6: 'O'}
         {'B-ANSWER': 0, 'B-HEADER': 1, 'B-QUESTION': 2, 'I-ANSWER': 3, 'I-HEADER': 4, 'I-QUESTION': 5, 'O': 6}
@@ -48,7 +49,7 @@ class FUNSD:
         trainable_train_ds, trainable_val_ds, trainable_test_ds = \
             self.get_preprocessed_ds(label_train_ds),self.get_preprocessed_ds(label_val_ds), self.get_preprocessed_ds(label_test_ds)
 
-        trainable_train_ds = concatenate_datasets(trainable_train_ds,trainable_val_ds)
+        # trainable_train_ds = concatenate_datasets(trainable_train_ds,trainable_val_ds)
         self.trainable_ds = DatasetDict({
             "train" : trainable_train_ds , 
             "test" : trainable_test_ds 
@@ -56,7 +57,8 @@ class FUNSD:
 
     def get_raw_ds(self, base_dir):
         raw_ds = Dataset.from_generator(self.ds_generator, gen_kwargs={'base_dir':base_dir})
-
+        # raw_ds = Dataset.from_dict(self.ds_generator, gen_kwargs={'base_dir':base_dir})
+        # raw_ds = self.ds_generator(base_dir)
         return raw_ds
 
     def ds_generator(self, base_dir):
@@ -78,43 +80,38 @@ class FUNSD:
             image_path = image_path.replace("json", "png")
             image, size = self._load_image(image_path)
             block_idx = 1
-            for block in data["form"]:
-                cur_line_bboxes = []
-                words, label = block["words"], block["label"]
-                text = block['text']
-                if text.strip() == '': continue
-                words = [w for w in words if w["text"].strip() != ""]
-                if len(words) == 0:
-                    continue
-                if label == "other":
-                    for w in words:
-                        tokens.append(w["text"])
-                        block_ids.append(block_idx)
-                        ner_tags.append("O")
-                        norm_tbox = self._normalize_bbox(w["box"], size)
-                        tboxes.append(norm_tbox)
-                        cur_line_bboxes.append(norm_tbox)
-                else:
-                    tokens.append(words[0]["text"])
-                    block_ids.append(block_idx)
-                    ner_tags.append("B-" + label.upper())
-                    norm_tbox = self._normalize_bbox(words[0]["box"], size)
-                    tboxes.append(norm_tbox)
-                    cur_line_bboxes.append(norm_tbox)
-                    for w in words[1:]:
-                        tokens.append(w["text"])
-                        block_ids.append(block_idx)
-                        ner_tags.append("I-" + label.upper())
-                        norm_tbox = self._normalize_bbox(w["box"], size)
-                        tboxes.append(norm_tbox)
-                        cur_line_bboxes.append(norm_tbox)
-                cur_line_bboxes = self._get_line_bbox(cur_line_bboxes)  # shared boxes, token-wise
-                bboxes.extend(cur_line_bboxes)
-                block_idx += 1
+            for block in data["children"]:
+                for field in block['children']:
+                    label = field["label"]
+                    text = field['value']['value']
+                    bbox = field['value']['bbox']   # b-box
+                    norm_tbox = self._normalize_bbox(bbox, size)
 
-            yield {"id": doc_idx, "tokens": tokens,"tboxes":tboxes,"bboxes": bboxes, "ner_tags": ner_tags,
-                   "block_ids": block_ids, "image": image}
-        # one_page_info = {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
+                    if text.strip() == '': continue
+                    words = [w for w in text.split() if w.strip() != ""]
+                    if len(words) == 0:
+                        continue
+                    if label == "other":
+                        for w in words:
+                            tokens.append(w)
+                            block_ids.append(block_idx)
+                            ner_tags.append("O")
+                            bboxes.append(norm_tbox)
+                    else:
+                        tokens.append(words[0])
+                        block_ids.append(block_idx)
+                        ner_tags.append("B-" + label.upper())
+                        bboxes.append(norm_tbox)
+                        for w in words[1:]:
+                            tokens.append(w)
+                            block_ids.append(block_idx)
+                            ner_tags.append("I-" + label.upper())
+                            bboxes.append(norm_tbox)
+                    block_idx += 1
+
+                yield {"id": doc_idx, "tokens": tokens,"bboxes": bboxes, "ner_tags": ner_tags,
+                    "block_ids": block_ids, "image": image}
+            # one_page_info = {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
 
 
     def get_preprocessed_ds(self,ds):
