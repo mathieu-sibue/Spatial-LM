@@ -541,6 +541,7 @@ class LayoutLMv3Attention(nn.Module):
 class LayoutLMv3Layer(nn.Module):
     def __init__(self, config):
         super().__init__()
+        self.config = config
         self.chunk_size_feed_forward = config.chunk_size_feed_forward
         self.seq_len_dim = 1
         self.attention = LayoutLMv3Attention(config)
@@ -550,6 +551,7 @@ class LayoutLMv3Layer(nn.Module):
     def forward(
         self,
         hidden_states,
+        hidden_states_spatial,
         attention_mask=None,
         head_mask=None,
         output_attentions=False,
@@ -558,6 +560,7 @@ class LayoutLMv3Layer(nn.Module):
     ):
         self_attention_outputs = self.attention(
             hidden_states,
+            hidden_states_spatial,
             attention_mask,
             head_mask,
             output_attentions=output_attentions,
@@ -571,8 +574,13 @@ class LayoutLMv3Layer(nn.Module):
         layer_output = apply_chunking_to_forward(
             self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, attention_output
         )
-        outputs = (layer_output,) + outputs
-
+        if self.config.spatial_attention_update::
+            layer_output_spatial = apply_chunking_to_forward(
+                self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, self_attention_outputs[1]
+            )
+            outputs = (layer_output,layer_output_spatial) + outputs
+        else:
+            outputs = (layer_output,) + outputs 
         return outputs
 
     def feed_forward_chunk(self, attention_output):
@@ -667,6 +675,7 @@ class LayoutLMv3Encoder(nn.Module):
     def forward(
         self,
         hidden_states,
+        hidden_states_spatial,
         bbox=None,
         attention_mask=None,
         head_mask=None,
@@ -704,6 +713,7 @@ class LayoutLMv3Encoder(nn.Module):
                 layer_outputs = torch.utils.checkpoint.checkpoint(
                     create_custom_forward(layer_module),
                     hidden_states,
+                    hidden_states_spatial,
                     attention_mask,
                     layer_head_mask,
                     output_attentions,
@@ -713,6 +723,7 @@ class LayoutLMv3Encoder(nn.Module):
             else:
                 layer_outputs = layer_module(
                     hidden_states,
+                    hidden_states_spatial,
                     attention_mask,
                     layer_head_mask,
                     output_attentions,
@@ -721,6 +732,10 @@ class LayoutLMv3Encoder(nn.Module):
                 )
 
             hidden_states = layer_outputs[0]
+
+            if self.config.spatial_attention_update:
+                hidden_states_spatial = layer_outputs[1]   
+
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
 

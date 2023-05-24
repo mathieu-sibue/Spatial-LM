@@ -5,7 +5,7 @@ from LMs.LayoutLM import LayoutLM4DocVQA
 from LMs.Roberta import GraphRobertaTokenClassifier, RobertaTokenClassifier
 from LMs.SpatialLM import SpatialLMForMaskedLM, SpatialLMForTokenclassifier, SpatialLMConfig, SpatialLMForSequenceClassification, SpatialLMForDocVQA
 from transformers import AutoConfig, AutoModel
-
+from LMs.layoutlmv3_disent import LayoutLMv3ForMaskedLM
 
 def setup(opt):
     print('network:' + opt.network_type)
@@ -20,6 +20,20 @@ def setup(opt):
         model = GraphRobertaTokenClassifier(opt)
     elif opt.network_type == 'roberta':
         model = RobertaTokenClassifier(opt)
+    elif opt.network_type == 'layoutlm_disent':
+        if opt.task_type == 'mlm':
+            # from_pretrained is put inside or outside
+            if 'checkpoint_path' in opt.__dict__.keys():
+                print('== load from the checkpoint === ', opt.checkpoint_path)
+                config = SpatialLMConfig.from_pretrained(opt.checkpoint_path)   # borrow config
+                config.spatial_attention_update = opt.spatial_attention_update
+                model = LayoutLMv3ForMaskedLM.from_pretrained(opt.checkpoint_path, config = config)
+            else:
+                # the first time, we first start from layoutlm; put layoutlm_dir
+                print('=== load the first time from layoutlmv3 ===')
+                config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
+                config.spatial_attention_update = opt.spatial_attention_update
+                model = LayoutLMv3ForMaskedLM(config=config, start_dir_path=opt.layoutlm_dir)
     elif opt.network_type == 'spatial_lm':
         if opt.task_type == 'mlm':
             # from_pretrained is put inside or outside
