@@ -91,11 +91,8 @@ class RobertaForQA(nn.Module):
         )
         return outputs
 
-class GraphRobertaForQA(nn.Module):
-    pass
 
-
-class RobertaClassifier(nn.Module):
+class RobertaSequenceClassifier(nn.Module):
     def __init__(self, opt, freeze_bert=False):
         super(RobertaClassifier, self).__init__()
         self.opt = opt
@@ -108,7 +105,7 @@ class RobertaClassifier(nn.Module):
             nn.Linear(self.opt.input_dim,self.opt.input_dim),   # hidden dim
             nn.ReLU(),
             nn.Dropout(self.opt.dropout),
-            nn.Linear(self.opt.input_dim, self.opt.reader.nb_classes),
+            nn.Linear(self.opt.input_dim, self.opt.num_labels),
             nn.Sigmoid()
         )
 
