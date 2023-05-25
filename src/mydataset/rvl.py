@@ -47,12 +47,16 @@ class RVL:
             processed_ds = self.get_preprocessed_ds(raw_ds)
             processed_ds_list.append(processed_ds)
 
+        
+
+        # continue to add val
         for i in range(5):
             ds_path = '/home/ubuntu/air/vrdu/datasets/rvl_HF_datasets/full_rvl_val'+str(i)+'_dataset.hf'
             raw_ds = self.get_raw_ds(ds_path)
             processed_ds = self.get_preprocessed_ds(raw_ds)
             processed_ds_list.append(processed_ds)
-        trainable_train_ds = concatenate_datasets(processed_ds_list)
+
+        trainable_train_ds = concatenate_datasets(processed_ds_list).shuffle(seed=88)
 
         # step 2.2, get labeled ds (get label list, and map label dataset)
         processed_ds_list = []
@@ -61,11 +65,11 @@ class RVL:
             raw_ds = self.get_raw_ds(ds_path)
             processed_ds = self.get_preprocessed_ds(raw_ds)
             processed_ds_list.append(processed_ds)
-        trainable_test_ds = concatenate_datasets(processed_ds_list)
+        trainable_test_ds = concatenate_datasets(processed_ds_list).shuffle(seed=88)
 
         self.trainable_ds = DatasetDict({
             "train" : trainable_train_ds , 
-            "test" : trainable_test_ds 
+            "test" : trainable_test_ds
         })
         print(self.trainable_ds)
 
