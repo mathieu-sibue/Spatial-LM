@@ -46,7 +46,7 @@ class MyTrainer:
             logging_dir='./logs',  
             log_level = 'info', # ‘debug’, ‘info’, ‘warning’, ‘error’ and ‘critical’, 
             logging_strategy = 'epoch', # epoch, step, no
-
+            logging_steps= 512,
             save_steps=2000,
         )
         trainer = Trainer(
@@ -84,8 +84,9 @@ class MyTrainer:
             # prediction_loss_only = True,
             logging_dir='./logs',  
             log_level = 'info', # ‘debug’, ‘info’, ‘warning’, ‘error’ and ‘critical’, 
-            logging_strategy = 'epoch', # epoch, step, no
-            # save_steps=5000,
+            # logging_strategy = 'epoch', # epoch, step, no
+            logging_steps = 512,
+            save_steps=3000,
         )
 
         trainer = Trainer(
