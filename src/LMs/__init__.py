@@ -21,7 +21,7 @@ def setup(opt):
     elif opt.network_type == 'roberta':
         model = RobertaTokenClassifier(opt)
     elif opt.network_type == 'layoutlmv3_disent':
-        if opt.task_type == 'mlm':
+        if opt.task_type in ['mlm','blm']:
             # from_pretrained is put inside or outside
             if 'checkpoint_path' in opt.__dict__.keys():
                 print('== load from the checkpoint === ', opt.checkpoint_path)
@@ -36,7 +36,7 @@ def setup(opt):
                 model = LayoutLMv3ForMaskedLM(config=config, start_dir_path=opt.layoutlm_dir)
         print('attention mode:',config.spatial_attention_update)
     elif opt.network_type == 'spatial_lm':
-        if opt.task_type == 'mlm':
+        if opt.task_type in ['mlm'.'blm']:
             # from_pretrained is put inside or outside
             if 'checkpoint_path' in opt.__dict__.keys():
                 print('== load from the checkpoint === ', opt.checkpoint_path)
