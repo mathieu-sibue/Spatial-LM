@@ -3,13 +3,13 @@ import torch
 from transformers import PreTrainedTokenizer, DataCollatorForLanguageModeling
 from typing import Any, Callable, Dict, List, NewType, Optional, Tuple, Union
 from collections.abc import Mapping
-
+import collections
 
 class BlockMaskingDataCollator(DataCollatorForLanguageModeling):
     def __init__(self, tokenizer: PreTrainedTokenizer, mlm: bool, mlm_probability: float = 0.15):
         super().__init__(tokenizer=tokenizer, mlm = mlm, mlm_probability=mlm_probability)
-        self.block_size = 10    # cannot mask more than 30 tokens at once;
-
+        self.block_size = 20    # cannot mask more than 30 tokens at once;
+        self.statis = collections.defaultdict(int)
     
     def torch_call(self, examples: List[Union[List[int], Any, Dict[str, Any]]]) -> Dict[str, Any]:
         # Handle dict or lists with proper padding and conversion to tensor.
@@ -63,6 +63,9 @@ class BlockMaskingDataCollator(DataCollatorForLanguageModeling):
 
         # expand the masked_indices here
         masked_indices = self.extend_indices(position_ids, masked_indices)
+
+        # print('==',self.statis)
+        # print(sorted(self.statis.values()))
         # test after masking!
         # count = torch.count_nonzero(masked_indices)
         # print('new mask num',count)
@@ -96,10 +99,11 @@ class BlockMaskingDataCollator(DataCollatorForLanguageModeling):
                 continue
             
             # Extend leftwards until we hit a non-number or a number less than 2
+            cnt = 1
             for k in range(j-1, -1, -1):
                 value = position_ids[i][k].item()
                 # stop conditions
-                if not value or value <2 or j-k>3:
+                if not value or value <2 or j-k>self.block_size//2:
                     break
                 elif value==2:
                     if curr_val>2:
@@ -109,13 +113,17 @@ class BlockMaskingDataCollator(DataCollatorForLanguageModeling):
                         break
                 # extend
                 masked_indices[i][k] = True
-            
+                cnt+=1
+
             # Extend rightwards until we hit a non-number or a number less than or equal to 2
             for k in range(j+1, len(position_ids[i])):
                 value = position_ids[i][k].item()
-                if not value or value <= 2 or k-j>3:
+                if not value or value <= 2 or k-j>self.block_size//2:
                     break
                 masked_indices[i][k] = True
+                cnt+=1
+            self.statis[cnt]+=1
+
         
         return torch.tensor(masked_indices)
 
