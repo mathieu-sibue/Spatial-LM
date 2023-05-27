@@ -45,7 +45,7 @@ class MyTrainer:
             prediction_loss_only = True,
             logging_dir='./logs',  
             log_level = 'info', # ‘debug’, ‘info’, ‘warning’, ‘error’ and ‘critical’, 
-            logging_strategy = 'epoch', # epoch, step, no
+            logging_strategy = 'steps', # epoch, steps, no, default step???
             logging_steps= 512,
             save_steps=2000,
         )
