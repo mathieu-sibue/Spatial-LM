@@ -46,7 +46,7 @@ class CORD:
         print(trainable_train_ds)
         # print(trainable_train_ds[0])
         self.trainable_ds = DatasetDict({
-            "train" : trainable_train_ds , 
+            "train" : trainable_train_ds.shuffle(seed=88) , 
             "test" : trainable_test_ds 
         })
 

@@ -47,7 +47,7 @@ class FUNSD:
         # print(trainable_train_ds['input_ids'][:1,:5])
 
         self.trainable_ds = DatasetDict({
-            "train" : trainable_train_ds , 
+            "train" : trainable_train_ds.shuffle(seed=88) , 
             "test" : trainable_test_ds 
         })
 

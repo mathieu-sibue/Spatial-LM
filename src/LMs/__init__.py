@@ -6,6 +6,7 @@ from LMs.Roberta import GraphRobertaTokenClassifier, RobertaTokenClassifier
 from LMs.SpatialLM import SpatialLMForMaskedLM, SpatialLMForTokenclassifier, SpatialLMConfig, SpatialLMForSequenceClassification, SpatialLMForDocVQA
 from transformers import AutoConfig, AutoModel
 from LMs.layoutlmv3_disent import LayoutLMv3ForMaskedLM
+from LMs.layoutlmv3_disent import LayoutLMv3ForTokenClassification as DiscentTokClassifier
 
 def setup(opt):
     print('network:' + opt.network_type)
@@ -34,6 +35,9 @@ def setup(opt):
                 config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
                 config.spatial_attention_update = opt.spatial_attention_update
                 model = LayoutLMv3ForMaskedLM(config=config, start_dir_path=opt.layoutlm_dir)
+        elif opt.task_type == 'token-classifier':
+            config = AutoConfig.from_pretrained(opt.checkpoint_path)
+            model = DiscentTokClassifier.from_pretrained(opt.checkpoint_path, config = config)
         print('attention mode:',config.spatial_attention_update)
     elif opt.network_type == 'spatial_lm':
         if opt.task_type in ['mlm','blm']:
