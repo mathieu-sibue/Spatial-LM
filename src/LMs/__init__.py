@@ -37,6 +37,7 @@ def setup(opt):
                 model = LayoutLMv3ForMaskedLM(config=config, start_dir_path=opt.layoutlm_dir)
         elif opt.task_type == 'token-classifier':
             config = AutoConfig.from_pretrained(opt.checkpoint_path)
+            config.num_labels=opt.num_labels    # set label num from mydataset
             model = DiscentTokClassifier.from_pretrained(opt.checkpoint_path, config = config)
         print('attention mode:',config.spatial_attention_update)
     elif opt.network_type == 'spatial_lm':
