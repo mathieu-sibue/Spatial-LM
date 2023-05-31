@@ -50,7 +50,7 @@ def setup(opt):
             else:
                 # the first time, we first start from layoutlm; put layoutlm_dir
                 print('=== load the first time from layoutlmv3 ===')
-                config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
+                config = SpatialLMConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
                 model = SpatialLMForMaskedLM(config=config, start_dir_path=opt.layoutlm_dir)
 
         elif opt.task_type == 'token-classifier':
