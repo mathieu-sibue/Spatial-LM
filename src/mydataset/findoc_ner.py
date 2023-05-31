@@ -153,7 +153,7 @@ class FinDoc:
         features = Features({
             'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
             'input_ids': Sequence(feature=Value(dtype='int64')),
-            'position_ids': Sequence(feature=Value(dtype='int64')),
+            # 'position_ids': Sequence(feature=Value(dtype='int64')),
             'attention_mask': Sequence(Value(dtype='int64')),
             'bbox': Array2D(dtype="int64", shape=(512, 4)),
             'labels': Sequence(feature=Value(dtype='int64')),
@@ -161,7 +161,7 @@ class FinDoc:
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
         processed_ds = ds.map(_preprocess, batched=True, num_proc=os.cpu_count(), 
-            remove_columns=ds.column_names, features=features,batch_size=100).with_format("torch")
+            remove_columns=ds.column_names, features=features,batch_size=200).with_format("torch")
     
         # process to: 'input_ids', 'position_ids','attention_mask', 'bbox', 'labels', 'pixel_values']
         return processed_ds

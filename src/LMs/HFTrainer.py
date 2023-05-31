@@ -39,7 +39,8 @@ class MyTrainer:
             fp16 = True,    # make it train fast
             push_to_hub = False,
             # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
-            evaluation_strategy = "epoch",
+            evaluation_strategy = "steps",
+            eval_steps = 2000,
             save_strategy="steps",  # steps, epoch
             logging_strategy = 'steps', # epoch, steps, no, default step???
             logging_steps= 512,
@@ -80,7 +81,7 @@ class MyTrainer:
             push_to_hub = False,
             # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
             evaluation_strategy = "epoch",
-            save_strategy="epoch",  # no, epoch, steps
+            save_strategy="no",  # no, epoch, steps
             logging_strategy = 'steps', # epoch, step, no
             logging_steps = 512,
             save_steps=3000,
