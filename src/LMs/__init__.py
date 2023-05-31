@@ -45,7 +45,7 @@ def setup(opt):
             # from_pretrained is put inside or outside
             if 'checkpoint_path' in opt.__dict__.keys():
                 print('== load from the checkpoint === ', opt.checkpoint_path)
-                config = AutoConfig.from_pretrained(opt.checkpoint_path)   # borrow config
+                config = SpatialLMConfig.from_pretrained(opt.checkpoint_path)   # borrow config
                 model = SpatialLMForMaskedLM.from_pretrained(opt.checkpoint_path, config = config)
             else:
                 # the first time, we first start from layoutlm; put layoutlm_dir
@@ -54,7 +54,7 @@ def setup(opt):
                 model = SpatialLMForMaskedLM(config=config, start_dir_path=opt.layoutlm_dir)
 
         elif opt.task_type == 'token-classifier':
-            config = AutoConfig.from_pretrained(opt.checkpoint_path)
+            config = SpatialLMConfig.from_pretrained(opt.checkpoint_path)
             config.num_labels=opt.num_labels    # set label num
             config.spatial_attention = opt.spatial_attention
             model = SpatialLMForTokenclassifier.from_pretrained(opt.checkpoint_path, config = config)
@@ -65,7 +65,7 @@ def setup(opt):
                 config.num_labels, config.id2label, config.label2id = opt.num_labels, opt.id2label, opt.label2id  # set label num
             model = SpatialLMForSequenceClassification.from_pretrained(opt.checkpoint_path, config=config)
         elif opt.task_type == 'docvqa':
-            config = AutoConfig.from_pretrained(opt.checkpoint_path)
+            config = SpatialLMConfig.from_pretrained(opt.checkpoint_path)
             config.spatial_attention = opt.spatial_attention
             model = SpatialLMForDocVQA.from_pretrained(opt.checkpoint_path, config = config)
     else:
