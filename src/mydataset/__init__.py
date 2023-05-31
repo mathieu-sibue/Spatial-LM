@@ -18,6 +18,8 @@ def setup(opt):
         from mydataset.cdip import CDIP as MyData 
     elif opt.dataset_name.lower() == 'docvqa_ocr':
         from mydataset.docvqa_ocr import DocVQA as MyData
+    elif opt.dataset_name.lower() == 'findoc_ner':
+        from mydataset.findoc_ner import FinDoc as MyData
     else:
         raise Exception('dataset not supported:{}'.format(opt.dataset_name))
 
