@@ -57,10 +57,11 @@ class FinDoc:
             tbox = sample['tboxes']
             size = sample['size']
             if self.opt.bbox_type == 'tbox':
-                bbox =  sample['tboxes']
+                boxes =  sample['tboxes']
             else:
-                bbox = sample['bboxes']
-            sample['bboxes'] = [self._normalize_bbox(bbox, size) for bbox in sample['bboxes']]
+                boxes = sample['bboxes']
+            # norm to 1000
+            sample['bboxes'] = [self._normalize_bbox(bbox, size) for bbox in boxes]
             return sample
    
         ds = raw_ds.map(_load_imgs_obj, num_proc=os.cpu_count())
