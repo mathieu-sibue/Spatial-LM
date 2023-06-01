@@ -31,6 +31,7 @@ class FinDoc:
         # step 2.2, get  labeled ds (get label list, and map label dataset)
         opt.id2label, opt.label2id, opt.label_list = self._get_label_map(raw_train)
         opt.num_labels = len(opt.label_list)
+
         # map label ds
         train_label_ds, test_label_ds = self.get_label_ds(raw_train), self.get_label_ds(raw_test)
 
@@ -41,6 +42,8 @@ class FinDoc:
         print(trainable_train_ds)
         print(trainable_test_ds)
 
+        print('=====',opt.label_list)
+        
         self.trainable_ds = DatasetDict({
             "train" : trainable_train_ds.shuffle(seed=88), 
             "test" : trainable_test_ds 
@@ -91,9 +94,6 @@ class FinDoc:
             tokID_tbox = {}
             tokID_NER = {}
 
-            # get from annotations
-            tokID_bbox = {}
-
             for token in doc['tokens']:
                 tokID = int(token['token_id'])
                 x1,y1 = token['x'],token['y']
@@ -105,11 +105,27 @@ class FinDoc:
                 # add
                 tokID_text[tokID] = tok_text
                 tokID_tbox[tokID] = tbox
-                tokID_NER[tokID] = tok_ner
+                if tok_ner<0:
+                    ner = 'O'
+                else:
+                    ner = 'I-'+str(tok_ner)
+                tokID_NER[tokID] = ner
             
+            # get from annotations
+            tokID_bbox = {}
+
             for entity in doc['annotations']:
                 bbox = entity['bbox']
                 bbox = [bbox[0],bbox[1],bbox[0]+bbox[2], bbox[1]+bbox[3]]
+                # add B-
+                tok_ner = entity['class_id']
+                if tok_ner>=0:
+                    ordered_tokIDs = sorted(entity['token_ids'], key=lambda tok_id: (tokID_tbox[tok_id][0], tokID_tbox[tok_id][1]))
+                    first_tokID = ordered_tokIDs[0]
+                    # add B-
+                    tokID_NER[first_tokID] = 'B-'+str(tok_ner)
+
+                # add bbox
                 for tokID in entity['token_ids']:
                     tokID = int(tokID)
                     tokID_bbox[tokID] = bbox
@@ -169,14 +185,16 @@ class FinDoc:
 
     def get_label_ds(self,ds):
         def map_label2id(sample):
-            # sample['ner_tags'] = [self.opt.label2id[ner_label] for ner_label in sample['ner_tags'] if ner_label>=0 else -100]
-            new_tags = []
-            for ner_label in sample['ner_tags']:
-                if ner_label>=0:
-                    new_tags.append(self.opt.label2id[ner_label])
-                else: 
-                    new_tags.append(-100)
-            sample['ner_tags'] = new_tags
+            sample['ner_tags'] = [self.opt.label2id[ner_label] for ner_label in sample['ner_tags']]
+            # new_tags = []
+            # for ner_label in sample['ner_tags']:
+            #     # new_tags.append(self.opt.label2id[ner_label])
+            #     # filter -1; or through it as -100
+            #     if ner_label>=0:
+            #         new_tags.append('I-'+str(self.opt.label2id[ner_label]))
+            #     else: 
+            #         new_tags.append('O')
+            # sample['ner_tags'] = new_tags
             return sample
         label_ds = ds.map(map_label2id, num_proc=os.cpu_count())
         return label_ds
@@ -187,8 +205,7 @@ class FinDoc:
         for label in labels:
             unique_labels = unique_labels | set(label)
         label_list = list(unique_labels)
-        if label_list[0]<0:
-            label_list.pop(0)
+        # label_list = [l for l in label_list if l>=0]    # filter -1
         label_list.sort()
         return label_list
     # get label list
