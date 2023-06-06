@@ -7,6 +7,7 @@ from LMs.SpatialLM import SpatialLMForMaskedLM, SpatialLMForTokenclassifier, Spa
 from transformers import AutoConfig, AutoModel
 from LMs.layoutlmv3_disent import LayoutLMv3ForMaskedLM
 from LMs.layoutlmv3_disent import LayoutLMv3ForTokenClassification as DiscentTokClassifier
+from LMs.bert import BertTokenClassifier,BertForQA
 
 def setup(opt):
     print('network:' + opt.network_type)
@@ -19,6 +20,8 @@ def setup(opt):
             model = LayoutLM4DocVQA(opt)
     elif opt.network_type == 'graph_roberta':
         model = GraphRobertaTokenClassifier(opt)
+    elif opt.network_type == 'bert':
+        model = BertTokenClassifier(opt)
     elif opt.network_type == 'roberta':
         model = RobertaTokenClassifier(opt)
     elif opt.network_type == 'layoutlmv3_disent':

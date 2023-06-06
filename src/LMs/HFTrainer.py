@@ -68,6 +68,8 @@ class MyTrainer:
         # mlm= True uses masked language model; otherwise, causal LM (NTP); 
         # logging_steps = len(mydata.train_dataset)  //opt.batch_size
         trainable_ds = mydata.trainable_ds
+        # from config
+        save_strategy = opt.save_strategy
 
         training_args = TrainingArguments(
             output_dir = opt.checkpoint_save_path,
@@ -81,7 +83,7 @@ class MyTrainer:
             push_to_hub = False,
             # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
             evaluation_strategy = "epoch",
-            save_strategy="no",  # no, epoch, steps
+            save_strategy=save_strategy,  # no, epoch, steps
             logging_strategy = 'steps', # epoch, step, no
             logging_steps = 512,
             save_steps=3000,
@@ -104,8 +106,7 @@ class MyTrainer:
             # tokenizer = mydata.tokenizer
         )
         trainer.train()
-        if bool(self.opt.save_model):
-            trainer.save_model(opt.save_path)
+
 
     def train_docvqa(self,opt, model, mydata):
         # mlm= True uses masked language model; otherwise, causal LM (NTP); 
@@ -203,14 +204,23 @@ class MyTrainer:
             [label_list[l] for (p, l) in zip(prediction, label) if l != -100]
             for prediction, label in zip(predictions, labels)
         ]
-        # print('true predicts: ',true_predictions)
-        # print('true labels: ',true_labels)
-        results = metric.compute(predictions=true_predictions, references=true_labels)
+        # print('true predicts: ',len(true_predictions))
+        # print('true labels: ',len(true_labels))
 
+        # print(len(true_predictions[0]), ':',true_predictions[0])
+        # print(len(true_labels[0]), ':' ,true_labels[0])
+
+
+        results = metric.compute(predictions=true_predictions, references=true_labels)
+        
+        print(results)
+        
         return {
             "precision": results["overall_precision"],
             "recall": results["overall_recall"],
             "f1": results["overall_f1"],
             "accuracy": results["overall_accuracy"],
         }
+
+        
 

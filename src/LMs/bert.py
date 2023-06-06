@@ -12,7 +12,7 @@ from torch.nn import CrossEntropyLoss
 
 class BertTokenClassifier(nn.Module):
     def __init__(self,opt):
-        super(BERTTokenClassifier, self).__init__()
+        super(BertTokenClassifier, self).__init__()
         self.opt = opt
         self.num_labels = opt.num_labels
         self.config = BertConfig.from_pretrained(opt.bert_dir)
