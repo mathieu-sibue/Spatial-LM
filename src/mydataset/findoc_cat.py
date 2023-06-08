@@ -17,17 +17,16 @@ class FinDoc:
         assert isinstance(self.tokenizer, transformers.PreTrainedTokenizerFast)  # get sub
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False)    # wrap of featureExtract & tokenizer
 
-        self.label_col_name = "ner_tags"
+        self.label_col_name = "doc_class"
 
         # step 2.1: get raw ds (already normalized bbox, img object)
         raw_train, raw_test = self.get_raw_ds()
         # step 2.2, get  label_list and label2id dict
         opt.id2label, opt.label2id, opt.label_list = self._get_label_map(raw_train)
         opt.num_labels = len(opt.label_list)
-        # step 2.3, use the dict to map label to idx
-        train_label_ds, test_label_ds = self.get_label_ds(raw_train), self.get_label_ds(raw_test)
+        print(opt.label_list)
         # load img and norm bbox with max=1000
-        normed_train, normed_test = self.get_normed_ds(train_label_ds), self.get_normed_ds(test_label_ds)
+        normed_train, normed_test = self.get_normed_ds(raw_train), self.get_normed_ds(raw_test)
 
         # step 3: prepare for getting trainable data (encode and define features)
         trainable_train_ds, trainable_test_ds = self.get_preprocessed_ds(normed_train),self.get_preprocessed_ds(normed_test)
@@ -125,7 +124,6 @@ class FinDoc:
             tokens = []
             tboxes = []
             bboxes = []
-            ner_tags = []
         
             for tokID in sorted(tokID_text.keys()):
                 tokens.append(tokID_text[tokID])
@@ -134,9 +132,8 @@ class FinDoc:
                     bboxes.append(tokID_bbox[tokID])
                 else:
                     bboxes.append(tokID_tbox[tokID])
-                ner_tags.append(tokID_NER[tokID])
 
-            yield {"id": doc_idx, "tokens": tokens,"tboxes":tboxes, "bboxes": bboxes, "ner_tags": ner_tags, 
+            yield {"id": doc_idx, "tokens": tokens,"tboxes":tboxes, "bboxes": bboxes, "doc_class": doc_class_id, 
                 "image_path": img_path, "size":size}
             # print(item)
 
@@ -189,6 +186,8 @@ class FinDoc:
             encodings = self.processor(images=batch['image'],text=batch['tokens'], boxes=batch['bboxes'],
                                     word_labels=batch['ner_tags'],  return_token_type_ids = return_type,
                                     truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
+            # 2) add labels separately for sequence classification
+            encodings['labels'] = [self.opt.label2id[label] for label in batch[self.label_col_name] ]
 
             return encodings
 
@@ -218,44 +217,13 @@ class FinDoc:
         return processed_ds
 
 
-    def get_label_ds(self,ds):
-        def map_label2id(sample):
-            sample['ner_tags'] = [self.opt.label2id[ner_label] for ner_label in sample['ner_tags']]
-            # new_tags = []
-            # for ner_label in sample['ner_tags']:
-            #     # new_tags.append(self.opt.label2id[ner_label])
-            #     # filter -1; or through it as -100
-            #     if ner_label>=0:
-            #         new_tags.append('I-'+str(self.opt.label2id[ner_label]))
-            #     else: 
-            #         new_tags.append('O')
-            # sample['ner_tags'] = new_tags
-            return sample
-        label_ds = ds.map(map_label2id, num_proc=os.cpu_count())
-        return label_ds
-
-
-    def _get_label_list(self,labels):
-        unique_labels = set()
-        for label in labels:
-            unique_labels = unique_labels | set(label)
-        label_list = list(unique_labels)
-        # label_list = [l for l in label_list if l>=0]    # filter -1
-        label_list.sort()
-        return label_list
     # get label list
     def _get_label_map(self,ds):
-        features = ds.features
-        column_names = ds.column_names
-        if isinstance(features[self.label_col_name].feature, ClassLabel):
-            label_list = features[self.label_col_name].feature.names
-            # No need to convert the labels since they are already ints.
-            id2label = {k: v for k,v in enumerate(label_list)}
-            label2id = {v: k for k,v in enumerate(label_list)}
-        else:
-            label_list = self._get_label_list(ds[self.label_col_name])   # this invokes another function
-            id2label = {k: v for k,v in enumerate(label_list)}
-            label2id = {v: k for k,v in enumerate(label_list)}
+        label_list = list(set(ds[self.label_col_name]))   # this invokes another function
+        label_list.sort()
+        id2label = {k: v for k,v in enumerate(label_list)}
+        label2id = {v: k for k,v in enumerate(label_list)}
+
         return id2label, label2id, label_list
 
     def _load_image(self,image_path):

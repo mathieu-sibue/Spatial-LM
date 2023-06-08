@@ -2,12 +2,12 @@
 # from LMs.Roberta import RobertaClassifier
 from LMs.LayoutLM import LayoutLMTokenclassifier
 from LMs.LayoutLM import LayoutLM4DocVQA
-from LMs.Roberta import GraphRobertaTokenClassifier, RobertaTokenClassifier
+from LMs.Roberta import RobertaSequenceClassifier, RobertaTokenClassifier
 from LMs.SpatialLM import SpatialLMForMaskedLM, SpatialLMForTokenclassifier, SpatialLMConfig, SpatialLMForSequenceClassification, SpatialLMForDocVQA
 from transformers import AutoConfig, AutoModel
 from LMs.layoutlmv3_disent import LayoutLMv3ForMaskedLM
 from LMs.layoutlmv3_disent import LayoutLMv3ForTokenClassification as DiscentTokClassifier
-from LMs.bert import BertTokenClassifier,BertForQA
+from LMs.bert import BertTokenClassifier,BertForQA, BertSequenceClassifier
 from LMs.layoutlmv2 import LayoutLMv2ForTokenClassification
 import transformers
 
@@ -22,7 +22,7 @@ def setup(opt):
     #         model = LayoutLM4DocVQA(opt)
     if opt.network_type == 'layoutlmv1':
         config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
-        config.num_labels=opt.num_labels+1    # set label num
+        config.num_labels=opt.num_labels    # set label num
         model = transformers.LayoutLMForTokenClassification.from_pretrained(opt.layoutlm_dir,config=config)
     elif opt.network_type == 'layoutlmv2':
         config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
@@ -31,11 +31,27 @@ def setup(opt):
     elif opt.network_type == 'layoutlmv3':
         config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
         config.num_labels=opt.num_labels    # set label num
-        model = transformers.LayoutLMv3ForTokenClassification.from_pretrained(opt.layoutlm_dir,config = config)
+        if opt.task_type == 'token-classifier':
+            model = transformers.LayoutLMv3ForTokenClassification.from_pretrained(opt.layoutlm_dir,config = config)
+        elif opt.task_type == 'sequence-classifier':
+            model = transformers.LayoutLMv3ForSequenceClassification.from_pretrained(opt.layoutlm_dir,config = config)
+        elif opt.task_type == 'docvqa':
+            config.num_labels = 2   # change back to 2
+            model = transformers.LayoutLMv3ForQuestionAnswering(opt.layoutlm_dir, config=config)
     elif opt.network_type == 'bert':
-        model = BertTokenClassifier(opt)
+        if opt.task_type == 'token-classifier':
+            model = BertTokenClassifier(opt)
+        elif opt.task_type == 'sequence-classifier':
+            model = BertSequenceClassifier(opt)
+        elif opt.task_type == 'docvqa':
+            model = BertForQA(opt)
     elif opt.network_type == 'roberta':
-        model = RobertaTokenClassifier(opt)
+        if opt.task_type == 'token-classifier': 
+            model = RobertaTokenClassifier(opt)
+        elif opt.task_type == 'sequence-classifier':
+            model = RobertaSequenceClassifier(opt)
+        elif opt.task_type == 'docvqa':
+            model = RobertaForQA(opt)
     elif opt.network_type == 'layoutlmv3_disent':
         if opt.task_type in ['mlm','blm']:
             # from_pretrained is put inside or outside
