@@ -8,18 +8,30 @@ from transformers import AutoConfig, AutoModel
 from LMs.layoutlmv3_disent import LayoutLMv3ForMaskedLM
 from LMs.layoutlmv3_disent import LayoutLMv3ForTokenClassification as DiscentTokClassifier
 from LMs.bert import BertTokenClassifier,BertForQA
+from LMs.layoutlmv2 import LayoutLMv2ForTokenClassification
+import transformers
 
 def setup(opt):
     print('network:' + opt.network_type)
     # if opt.network_type == 'roberta':
     #     model = RobertaClassifier(opt)
-    if opt.network_type == 'layoutlm':
-        if opt.task_type == 'token-classifier':
-            model = LayoutLMTokenclassifier(opt)
-        elif opt.task_type == 'docvqa':
-            model = LayoutLM4DocVQA(opt)
-    elif opt.network_type == 'graph_roberta':
-        model = GraphRobertaTokenClassifier(opt)
+    # if opt.network_type in ['layoutlm', 'layoutlmv1']:
+    #     if opt.task_type == 'token-classifier':
+    #         model = LayoutLMTokenclassifier(opt)
+    #     elif opt.task_type == 'docvqa':
+    #         model = LayoutLM4DocVQA(opt)
+    if opt.network_type == 'layoutlmv1':
+        config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
+        config.num_labels=opt.num_labels+1    # set label num
+        model = transformers.LayoutLMForTokenClassification.from_pretrained(opt.layoutlm_dir,config=config)
+    elif opt.network_type == 'layoutlmv2':
+        config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
+        config.num_labels=opt.num_labels    # set label num
+        model = LayoutLMv2ForTokenClassification.from_pretrained(opt.layoutlm_dir,config=config)
+    elif opt.network_type == 'layoutlmv3':
+        config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
+        config.num_labels=opt.num_labels    # set label num
+        model = transformers.LayoutLMv3ForTokenClassification.from_pretrained(opt.layoutlm_dir,config = config)
     elif opt.network_type == 'bert':
         model = BertTokenClassifier(opt)
     elif opt.network_type == 'roberta':

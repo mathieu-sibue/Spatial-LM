@@ -5,19 +5,12 @@ import os
 import json
 import transformers
 from PIL import Image
-from mydataset import myds_util
+
 
 class FinDoc:
     def __init__(self,opt) -> None:    
         self.opt = opt
-        '''
-        DatasetDict({
-            train: Dataset({
-                features: ['id', 'words', 'bboxes', 'ner_tags', 'image'],
-                num_rows: 800
-            })
-        })
-        '''
+
         # step1: create config, tokenizer, and processor
         self.config = AutoConfig.from_pretrained(opt.layoutlm_dir)
         self.tokenizer = AutoTokenizer.from_pretrained(opt.layoutlm_dir)
@@ -28,19 +21,16 @@ class FinDoc:
 
         # step 2.1: get raw ds (already normalized bbox, img object)
         raw_train, raw_test = self.get_raw_ds()
-        # step 2.2, get  labeled ds (get label list, and map label dataset)
+        # step 2.2, get  label_list and label2id dict
         opt.id2label, opt.label2id, opt.label_list = self._get_label_map(raw_train)
         opt.num_labels = len(opt.label_list)
-
-        # map label ds
+        # step 2.3, use the dict to map label to idx
         train_label_ds, test_label_ds = self.get_label_ds(raw_train), self.get_label_ds(raw_test)
-
+        # load img and norm bbox with max=1000
         normed_train, normed_test = self.get_normed_ds(train_label_ds), self.get_normed_ds(test_label_ds)
 
         # step 3: prepare for getting trainable data (encode and define features)
         trainable_train_ds, trainable_test_ds = self.get_preprocessed_ds(normed_train),self.get_preprocessed_ds(normed_test)
-        print(trainable_train_ds)
-        print(trainable_test_ds)
 
         print('=====',opt.label_list)
         
@@ -151,11 +141,50 @@ class FinDoc:
             # print(item)
 
 
+    def get_processed_for_bertx(self,ds):
+        def _preprocess(sample):
+            token_boxes = []
+            token_labels = []
+            for word, box, ner in zip(sample['tokens'], sample['bboxes'], sample['ner_tags']):
+                word_tokens = self.tokenizer.tokenize(word)
+                token_boxes.extend([box] * len(word_tokens))
+                token_labels.extend([ner]+ [-100]*(len(word_tokens) - 1))
+            # add bounding boxes of cls + sep tokens
+            token_boxes = [[0, 0, 0, 0]] + token_boxes + [[1000, 1000, 1000, 1000]]*(self.opt.max_seq_len-len(token_boxes)-1)
+            token_labels = [-100] + token_labels + [-100] * (self.opt.max_seq_len-len(token_labels)-1)
+            # == wrap the sample into: {input_ids, token_type_ids, attention_mask, bbox, labels} ==
+            # 1) tokenize, here, you must join the 'tokens' as one 'text' in a conventional way
+            encodings = self.tokenizer(text=" ".join(sample['tokens']), return_token_type_ids = True,
+                max_length=self.opt.max_seq_len, padding="max_length", truncation=True)
+            # 2) add extended bbox and labels
+            encodings['bbox'] = token_boxes[:self.opt.max_seq_len]
+            encodings['labels'] = token_labels[:self.opt.max_seq_len]
+            return encodings
+
+        features = Features({
+            'input_ids': Sequence(feature=Value(dtype='int64')),
+            # 'position_ids': Sequence(feature=Value(dtype='int64')),
+            'token_type_ids':Sequence(feature=Value(dtype='int64')),
+            'attention_mask': Sequence(Value(dtype='int64')),
+            'bbox': Array2D(dtype="int64", shape=(512, 4)),
+            'labels': Sequence(feature=Value(dtype='int64')),
+        })
+        processed_ds = ds.map(_preprocess, num_proc=os.cpu_count(), 
+            remove_columns=ds.column_names, features=features).with_format("torch")
+        return processed_ds
+
+
     def get_preprocessed_ds(self,ds):
+        # old dataset style
+        if self.opt.network_type in ['bert','layoutlmv1']:
+            return self.get_processed_for_bertx(ds)
+
+        # otherwise
         def _preprocess(batch):
-            # 1) encode words and imgs
             encodings = self.processor(images=batch['image'],text=batch['tokens'], boxes=batch['bboxes'],
-                                       word_labels=batch['ner_tags'], truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
+                                       word_labels=batch['ner_tags'],  return_token_type_ids = True,
+                                       truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
+            
             # 2) add position_ids
             # position_ids = []
             # for i, block_ids in enumerate(batch['block_ids']):
@@ -166,15 +195,23 @@ class FinDoc:
 
             return encodings
 
-
-        features = Features({
-            'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
-            'input_ids': Sequence(feature=Value(dtype='int64')),
-            # 'position_ids': Sequence(feature=Value(dtype='int64')),
-            'attention_mask': Sequence(Value(dtype='int64')),
-            'bbox': Array2D(dtype="int64", shape=(512, 4)),
-            'labels': Sequence(feature=Value(dtype='int64')),
-        })
+        if self.opt.network_type == 'layoutlmv2':
+            features = Features({
+                'image' : Array3D(dtype="float32", shape=(3, 224, 224)),
+                'input_ids': Sequence(feature=Value(dtype='int64')),
+                'token_type_ids':Sequence(feature=Value(dtype='int64')),
+                'attention_mask': Sequence(Value(dtype='int64')),
+                'bbox': Array2D(dtype="int64", shape=(512, 4)),
+                'labels': Sequence(feature=Value(dtype='int64')),
+            })
+        else:
+            features = Features({
+                'pixel_values' : Array3D(dtype="float32", shape=(3, 224, 224)),
+                'input_ids': Sequence(feature=Value(dtype='int64')),
+                'attention_mask': Sequence(Value(dtype='int64')),
+                'bbox': Array2D(dtype="int64", shape=(512, 4)),
+                'labels': Sequence(feature=Value(dtype='int64')),
+            })
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
         processed_ds = ds.map(_preprocess, batched=True, num_proc=os.cpu_count(), 
@@ -264,18 +301,32 @@ class FinDoc:
             rel_cnt+=1
         return res
 
+
 if __name__ == '__main__':
+    from params import Params
+
     # Section 1, parse parameters
-    mydata = FUNSD(None)
-    test_dataset = mydata.get_data(split='test')
-    print(test_dataset)
-    doc1 = test_dataset[0]
-    print(doc1['input_ids'])
+    opt = Params()
+    opt.layoutlm_dir = '/home/ubuntu/air/vrdu/models/layoutlmv2.base'
+    opt.findoc_dir='/home/ubuntu/air/vrdu/datasets/no_rare'
+    opt.network_type = 'layoutlmv2'
+    opt.bbox_type = 'tbox'
+    opt.max_seq_len = 512
+
+    mydata = FinDoc(opt)
+    print(mydata.trainable_ds)
+    print('finished')
 
     '''
-    Dataset({
-        features: ['input_ids', 'attention_mask', 'bbox', 'labels', 'pixel_values'],
-        num_rows: 100
+    DatasetDict({
+        train: Dataset({
+            features: ['image', 'input_ids', 'token_type_ids', 'attention_mask', 'bbox', 'labels'],
+            num_rows: 1220
+        })
+        test: Dataset({
+            features: ['image', 'input_ids', 'token_type_ids', 'attention_mask', 'bbox', 'labels'],
+            num_rows: 350.
+        })
     })
     '''
 
