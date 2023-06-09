@@ -141,21 +141,20 @@ class FinDoc:
     def get_processed_for_bertx(self,ds):
         def _preprocess(sample):
             token_boxes = []
-            token_labels = []
-            for word, box, ner in zip(sample['tokens'], sample['bboxes'], sample['ner_tags']):
+            for word, box in zip(sample['tokens'], sample['bboxes']):
                 word_tokens = self.tokenizer.tokenize(word)
                 token_boxes.extend([box] * len(word_tokens))
-                token_labels.extend([ner]+ [-100]*(len(word_tokens) - 1))
             # add bounding boxes of cls + sep tokens
             token_boxes = [[0, 0, 0, 0]] + token_boxes + [[1000, 1000, 1000, 1000]]*(self.opt.max_seq_len-len(token_boxes)-1)
-            token_labels = [-100] + token_labels + [-100] * (self.opt.max_seq_len-len(token_labels)-1)
             # == wrap the sample into: {input_ids, token_type_ids, attention_mask, bbox, labels} ==
             # 1) tokenize, here, you must join the 'tokens' as one 'text' in a conventional way
             encodings = self.tokenizer(text=" ".join(sample['tokens']), return_token_type_ids = True,
                 max_length=self.opt.max_seq_len, padding="max_length", truncation=True)
             # 2) add extended bbox and labels
             encodings['bbox'] = token_boxes[:self.opt.max_seq_len]
-            encodings['labels'] = token_labels[:self.opt.max_seq_len]
+            # 3) add class labels separately for sequence classification
+            encodings['labels'] =  sample[self.label_col_name]
+
             return encodings
 
         features = Features({
@@ -164,7 +163,7 @@ class FinDoc:
             'token_type_ids':Sequence(feature=Value(dtype='int64')),
             'attention_mask': Sequence(Value(dtype='int64')),
             'bbox': Array2D(dtype="int64", shape=(512, 4)),
-            'labels': Sequence(feature=Value(dtype='int64')),
+            'labels': Value(dtype='int64'),
         })
         processed_ds = ds.map(_preprocess, num_proc=os.cpu_count(), 
             remove_columns=ds.column_names, features=features).with_format("torch")
@@ -184,8 +183,8 @@ class FinDoc:
                 return_type = False
             # no idea why layoutlmv2 use token_type_ids, maybe just default with no reason
             encodings = self.processor(images=batch['image'],text=batch['tokens'], boxes=batch['bboxes'],
-                                    word_labels=batch['ner_tags'],  return_token_type_ids = return_type,
-                                    truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
+                            return_token_type_ids = return_type,
+                            truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
             # 2) add labels separately for sequence classification
             encodings['labels'] = [self.opt.label2id[label] for label in batch[self.label_col_name] ]
 
@@ -198,7 +197,7 @@ class FinDoc:
                 'token_type_ids':Sequence(feature=Value(dtype='int64')),
                 'attention_mask': Sequence(Value(dtype='int64')),
                 'bbox': Array2D(dtype="int64", shape=(512, 4)),
-                'labels': Sequence(feature=Value(dtype='int64')),
+                'labels': Value(dtype='int64'),
             })
         else:
             features = Features({
@@ -206,7 +205,7 @@ class FinDoc:
                 'input_ids': Sequence(feature=Value(dtype='int64')),
                 'attention_mask': Sequence(Value(dtype='int64')),
                 'bbox': Array2D(dtype="int64", shape=(512, 4)),
-                'labels': Sequence(feature=Value(dtype='int64')),
+                'labels': Value(dtype='int64'),
             })
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
