@@ -56,6 +56,9 @@ class FinDoc:
         ds = raw_ds.map(_load_imgs_obj, num_proc=os.cpu_count())
         return ds
 
+    def _get_qa_pairs(self,split, id2qa,id2doc):
+
+
     def get_raw_ds(self):
         train = Dataset.from_generator(self.ds_generator, gen_kwargs={'base_dir':self.opt.findoc_dir,'split':'train'})
         test = Dataset.from_generator(self.ds_generator, gen_kwargs={'base_dir':self.opt.findoc_dir,'split':'test'})
@@ -79,7 +82,8 @@ class FinDoc:
 
             doc_class_id = doc['metadata']['doc_class_id']  # dont use for now
 
-            # get from entities
+
+            # 1) get from entities (page tokens)
             tokID_text = {}
             tokID_tbox = {}
             tokID_NER = {}
@@ -101,7 +105,7 @@ class FinDoc:
                     ner = 'I-'+str(tok_ner)
                 tokID_NER[tokID] = ner
             
-            # get from annotations
+            # 2) get from annotations (entity ners and bbox)
             tokID_bbox = {}
 
             for entity in doc['annotations']:
@@ -120,7 +124,7 @@ class FinDoc:
                     tokID = int(tokID)
                     tokID_bbox[tokID] = bbox
 
-            # combine 
+            # 3) combine above two bulletpoints
             tokens = []
             tboxes = []
             bboxes = []
@@ -133,8 +137,18 @@ class FinDoc:
                 else:
                     bboxes.append(tokID_tbox[tokID])
 
-            yield {"id": doc_idx, "tokens": tokens,"tboxes":tboxes, "bboxes": bboxes, "doc_class": doc_class_id, 
-                "image_path": img_path, "size":size}
+            # 4) add QA pairs and share the use of doc 
+            for vqa in doc['qa']:
+                if vqa['type'] == 'span':
+                    q,a  = vqa['question'], vqa['answer']
+                    sorted_ans = sorted(a[0])
+                    yield {
+                        "id": doc_idx, "tokens": tokens,"tboxes":tboxes, "bboxes": bboxes,
+                        'ans_start': sorted_ans[0], 'ans_end': sorted_ans[-1]
+                    }
+
+            # yield {"id": doc_idx, "tokens": tokens,"tboxes":tboxes, "bboxes": bboxes, "doc_class": doc_class_id, 
+            #     "image_path": img_path, "size":size}
             # print(item)
 
 
@@ -152,8 +166,14 @@ class FinDoc:
                 max_length=self.opt.max_seq_len, padding="max_length", truncation=True)
             # 2) add extended bbox and labels
             encodings['bbox'] = token_boxes[:self.opt.max_seq_len]
-            # 3) add class labels separately for sequence classification
-            encodings['labels'] =  sample[self.label_col_name]
+            # 3) add start and end positions
+            ans_starts = sample['ans_start']
+            ans_ends = sample['ans_end']
+
+            answer_start_index, answer_end_index = self._ans_index_range(encodings,batch_index,ans_starts, ans_ends)
+
+            encodings['start_positions'] = answer_start_index
+            encodings['end_positions'] = answer_end_index
 
             return encodings
 
@@ -185,10 +205,30 @@ class FinDoc:
             encodings = self.processor(images=batch['image'],text=batch['tokens'], boxes=batch['bboxes'],
                             return_token_type_ids = return_type,
                             truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
+            
             # 2) add labels separately for sequence classification
-            encodings['labels'] = [self.opt.label2id[label] for label in batch[self.label_col_name] ]
+            ans_starts = batch['ans_start']
+            ans_ends = batch['ans_end']
+            ans_start_positions = []
+            ans_end_positions = []
+            for batch_index in range(len(ans_starts)):
+                ans_word_idx_start, ans_word_idx_end = ans_starts[batch_index],ans_ends[batch_index]
+
+                answer_start_index, answer_end_index = self._ans_index_range(encodings,batch_index,ans_word_idx_start, ans_word_idx_end)
+                ans_start_positions.append(answer_start_index)
+                ans_end_positions.append(answer_end_index)
+                # print("Verifying start position and end position:===")
+                # print("True answer:", answers[batch_index])
+                # reconstructed_answer = self.tokenizer.decode(encoding.input_ids[batch_index][answer_start_index:answer_end_index+1])
+                # print("Reconstructed answer:", reconstructed_answer)
+                # print("-----------")
+
+            # 3.3 append the ans_start, ans_end_index
+            encodings['start_positions'] = ans_start_positions
+            encodings['end_positions'] = ans_end_positions
 
             return encodings
+
 
         if self.opt.network_type == 'layoutlmv2':
             features = Features({

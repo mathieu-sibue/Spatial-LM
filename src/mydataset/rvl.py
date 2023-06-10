@@ -47,7 +47,6 @@ class RVL:
             processed_ds = self.get_preprocessed_ds(raw_ds)
             processed_ds_list.append(processed_ds)
 
-        
 
         # continue to add val
         for i in range(5):

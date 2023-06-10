@@ -52,8 +52,20 @@ class FinDoc:
                 boxes = sample['bboxes']
             # norm to 1000
             sample['bboxes'] = [self._normalize_bbox(bbox, size) for bbox in boxes]
+            # for bbox in sample['bboxes']:
+            #     if bbox[0]>bbox[2] or bbox[1]>bbox[3]:
+            #         print('=====neg=====')
+            #         print(bbox)
+            #         print('==========')
+            #         # input(bbox)
+            #         bbox = [bbox[0],bbox[1],bbox[0]+1,bbox[1]+1]
+            #     else:
+            #         if bbox[2]-bbox[0]>127 or bbox[3]-bbox[1]>127:
+            #             print('=====BIG=====')
+            #             print(bbox)
+            #             print('=============')
             return sample
-   
+
         ds = raw_ds.map(_load_imgs_obj, num_proc=os.cpu_count())
         return ds
 
@@ -189,7 +201,6 @@ class FinDoc:
             encodings = self.processor(images=batch['image'],text=batch['tokens'], boxes=batch['bboxes'],
                                     word_labels=batch['ner_tags'],  return_token_type_ids = return_type,
                                     truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
-
             return encodings
 
         if self.opt.network_type == 'layoutlmv2':

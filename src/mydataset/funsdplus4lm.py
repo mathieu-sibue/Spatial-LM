@@ -1,4 +1,4 @@
-from datasets import load_dataset ,concatenate_datasets,Features, Sequence, Value, Array2D, Array3D, Dataset, DatasetDict
+from datasets import load_dataset ,load_from_disk, concatenate_datasets,Features, Sequence, Value, Array2D, Array3D, Dataset, DatasetDict
 from datasets.features import ClassLabel
 from transformers import AutoProcessor, AutoTokenizer, AutoConfig
 import os
@@ -6,6 +6,7 @@ import json
 import transformers
 from PIL import Image
 from mydataset import myds_util
+import datasets
 
 class FUNSDPLUS:
     def __init__(self,opt) -> None:    
@@ -27,21 +28,21 @@ class FUNSDPLUS:
         self.label_col_name = "ner_tags"
 
         # step 2.1: get raw ds (already normalized bbox, img object)
-        raw_train = self.get_raw_ds(opt.funsdplus_train)
+        # raw_train = self.get_raw_ds(opt.funsdplus_train)
+        raw_train = load_from_disk('/home/ubuntu/air/vrdu/datasets/funsd_plus/funsd+train.h')
         raw_val = self.get_raw_ds(opt.funsdplus_val)
-        raw_test = self.get_raw_ds(opt.funsdplus_test)
+        # raw_test = self.get_raw_ds(opt.funsdplus_test)
+        raw_test = load_from_disk('/home/ubuntu/air/vrdu/datasets/funsd_plus/funsd+test.h')
 
+        # raw_train.save_to_disk('funsd+train.h')
+        # raw_test.save_to_disk('funsd+test.h')
 
         # step 2.2, get  labeled ds (get label list, and map label dataset)
         _,_, opt.label_list = self._get_label_map(raw_train)
         opt.num_labels = len(opt.label_list)
         self.class_label = ClassLabel(num_classes=opt.num_labels, names = opt.label_list)
         print(self.class_label)
-        '''
-        {0: 'B-ANSWER', 1: 'B-HEADER', 2: 'B-QUESTION', 3: 'I-ANSWER', 4: 'I-HEADER', 5: 'I-QUESTION', 6: 'O'}
-        {'B-ANSWER': 0, 'B-HEADER': 1, 'B-QUESTION': 2, 'I-ANSWER': 3, 'I-HEADER': 4, 'I-QUESTION': 5, 'O': 6}
-        ['B-ANSWER', 'B-HEADER', 'B-QUESTION', 'I-ANSWER', 'I-HEADER', 'I-QUESTION', 'O']
-        '''
+
         # map label ds
         label_train_ds, label_val_ds, label_test_ds = self.get_label_ds(raw_train), self.get_label_ds(raw_val), self.get_label_ds(raw_test)
 
@@ -78,8 +79,10 @@ class FUNSDPLUS:
                 data = json.load(f)
             image_path = os.path.join(img_dir, file)
             image_path = image_path.replace("json", "png")
-            image, size = self._load_image(image_path)
+            image, _ = self._load_image(image_path)
             block_idx = 1
+
+            size = (data['bbox'][2],data['bbox'][3])
             for block in data["children"]:
                 for field in block['children']:
                     label = field["label"]
@@ -114,18 +117,60 @@ class FUNSDPLUS:
             # one_page_info = {'tokens': [], 'tboxes': [], 'bboxes': [], 'block_ids':[], 'image': image_path}
 
 
+    def get_processed_for_bertx(self,ds):
+        def _preprocess(sample):
+            token_boxes = []
+            token_labels = []
+            for word, box, ner in zip(sample['tokens'], sample['bboxes'], sample['ner_tags']):
+                word_tokens = self.tokenizer.tokenize(word)
+                token_boxes.extend([box] * len(word_tokens))
+                token_labels.extend([ner]+ [-100]*(len(word_tokens) - 1))
+            # add bounding boxes of cls + sep tokens
+            token_boxes = [[0, 0, 0, 0]] + token_boxes + [[1000, 1000, 1000, 1000]]*(self.opt.max_seq_len-len(token_boxes)-1)
+            token_labels = [-100] + token_labels + [-100] * (self.opt.max_seq_len-len(token_labels)-1)
+            # == wrap the sample into: {input_ids, token_type_ids, attention_mask, bbox, labels} ==
+            # 1) tokenize, here, you must join the 'tokens' as one 'text' in a conventional way
+            encodings = self.tokenizer(text=" ".join(sample['tokens']), return_token_type_ids = True,
+                max_length=self.opt.max_seq_len, padding="max_length", truncation=True)
+            # 2) add extended bbox and labels
+            encodings['bbox'] = token_boxes[:self.opt.max_seq_len]
+            encodings['labels'] = token_labels[:self.opt.max_seq_len]
+            return encodings
+
+        features = Features({
+            'input_ids': Sequence(feature=Value(dtype='int64')),
+            # 'position_ids': Sequence(feature=Value(dtype='int64')),
+            'token_type_ids':Sequence(feature=Value(dtype='int64')),
+            'attention_mask': Sequence(Value(dtype='int64')),
+            'bbox': Array2D(dtype="int64", shape=(512, 4)),
+            'labels': Sequence(feature=Value(dtype='int64')),
+        })
+        processed_ds = ds.map(_preprocess, num_proc=os.cpu_count(), 
+            remove_columns=ds.column_names, features=features).with_format("torch")
+        return processed_ds
+
+
     def get_preprocessed_ds(self,ds):
+        # old BERT style (different vocab and tokenization)
+        if self.opt.network_type in ['bert','layoutlmv1']:
+            return self.get_processed_for_bertx(ds)
+
         def _preprocess(batch):
             # 1) encode words and imgs
-            encodings = self.processor(images=batch['image'],text=batch['tokens'], boxes=batch['bboxes'],
+            if self.opt.network_type == 'layoutlmv2': 
+                return_type = True
+            else:
+                return_type = False
+            encodings = self.processor(images=batch['image'],text=batch['tokens'], boxes=batch['bboxes'],return_token_type_ids = return_type,
                                        word_labels=batch['ner_tags'], truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
-            # 2) add position_ids
-            position_ids = []
-            for i, block_ids in enumerate(batch['block_ids']):
-                word_ids = encodings.word_ids(i)
-                rel_pos = self._get_rel_pos(word_ids, block_ids)
-                position_ids.append(rel_pos)
-            encodings['position_ids'] = position_ids
+            # 2) add relative position_ids
+            if self.opt.network_type != 'layoutlmv2':
+                position_ids = []
+                for i, block_ids in enumerate(batch['block_ids']):
+                    word_ids = encodings.word_ids(i)
+                    rel_pos = self._get_rel_pos(word_ids, block_ids)
+                    position_ids.append(rel_pos)
+                encodings['position_ids'] = position_ids
 
             # 3) add spatial attention
             # spatial_matrix = []
@@ -137,16 +182,25 @@ class FUNSDPLUS:
 
             return encodings
 
-
-        features = Features({
-            'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
-            'input_ids': Sequence(feature=Value(dtype='int64')),
-            'position_ids': Sequence(feature=Value(dtype='int64')),
-            'attention_mask': Sequence(Value(dtype='int64')),
-            'bbox': Array2D(dtype="int64", shape=(512, 4)),
-            # 'spatial_matrix': Array3D(dtype='float32', shape=(512, 512, 11)),     # 
-            'labels': Sequence(feature=Value(dtype='int64')),
-        })
+        if self.opt.network_type == 'layoutlmv2':
+            features = Features({
+                'image' : Array3D(dtype="float32", shape=(3, 224, 224)),
+                'input_ids': Sequence(feature=Value(dtype='int64')),
+                'token_type_ids':Sequence(feature=Value(dtype='int64')),
+                'attention_mask': Sequence(Value(dtype='int64')),
+                'bbox': Array2D(dtype="int64", shape=(512, 4)),
+                'labels': Sequence(feature=Value(dtype='int64')),
+            })
+        else:
+            features = Features({
+                'pixel_values': Array3D(dtype="float32", shape=(3, 224, 224)),
+                'input_ids': Sequence(feature=Value(dtype='int64')),
+                'position_ids': Sequence(feature=Value(dtype='int64')),
+                'attention_mask': Sequence(Value(dtype='int64')),
+                'bbox': Array2D(dtype="int64", shape=(512, 4)),
+                # 'spatial_matrix': Array3D(dtype='float32', shape=(512, 512, 11)),     # 
+                'labels': Sequence(feature=Value(dtype='int64')),
+            })
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")
         processed_ds = ds.map(_preprocess, batched=True, num_proc=os.cpu_count(), 
@@ -159,6 +213,19 @@ class FUNSDPLUS:
     def get_label_ds(self,ds):
         def map_label2id(sample):
             sample['ner_tags'] = [self.class_label.str2int(ner_label) for ner_label in sample['ner_tags']]
+            bboxes = sample['bboxes']
+            # for bbox in bboxes:
+            #     if bbox[0]>bbox[2] or bbox[1]>bbox[3]:
+            #         print('=====neg=====')
+            #         print(bbox)
+            #         print('==========')
+            #         # input(bbox)
+            #         sample['bboxes'] = [bbox[0],bbox[1],bbox[0]+1,bbox[1]+1]
+            #     else:
+            #         if bbox[2]-bbox[0]>127 or bbox[3]-bbox[1]>127:
+            #             print('=====BIG=====')
+            #             print(bbox)
+            #             print('=====s=====')
             return sample
         label_ds = ds.map(map_label2id, num_proc=os.cpu_count())
         return label_ds

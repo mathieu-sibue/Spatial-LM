@@ -8,8 +8,10 @@ from transformers import AutoConfig, AutoModel
 from LMs.layoutlmv3_disent import LayoutLMv3ForMaskedLM
 from LMs.layoutlmv3_disent import LayoutLMv3ForTokenClassification as DiscentTokClassifier
 from LMs.bert import BertTokenClassifier,BertForQA, BertSequenceClassifier
-from LMs.layoutlmv2 import LayoutLMv2ForTokenClassification
+from LMs.layoutlmv2 import LayoutLMv2ForTokenClassification, LayoutLMv2Config
+from LMs.layoutlmv1 import LayoutLMForTokenClassification, LayoutLMForSequenceClassification
 import transformers
+from LMs import layoutlmv3_disent
 
 def setup(opt):
     print('network:' + opt.network_type)
@@ -23,9 +25,12 @@ def setup(opt):
     if opt.network_type == 'layoutlmv1':
         config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
         config.num_labels=opt.num_labels    # set label num
-        model = transformers.LayoutLMForTokenClassification.from_pretrained(opt.layoutlm_dir,config=config)
+        if opt.task_type == 'token-classifier':
+            model = LayoutLMForTokenClassification.from_pretrained(opt.layoutlm_dir,config=config)
+        elif opt.task_type == 'sequence-classifier':
+            model = LayoutLMForSequenceClassification.from_pretrained(opt.layoutlm_dir, config = config)
     elif opt.network_type == 'layoutlmv2':
-        config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
+        config = LayoutLMv2Config.from_pretrained(opt.layoutlm_dir)   # borrow config
         config.num_labels=opt.num_labels    # set label num
         model = LayoutLMv2ForTokenClassification.from_pretrained(opt.layoutlm_dir,config=config)
     elif opt.network_type == 'layoutlmv3':
@@ -42,14 +47,18 @@ def setup(opt):
         if opt.task_type == 'token-classifier':
             model = BertTokenClassifier(opt)
         elif opt.task_type == 'sequence-classifier':
-            model = BertSequenceClassifier(opt)
+            config = AutoConfig.from_pretrained(opt.bert_dir)
+            config.num_labels = opt.num_labels
+            model = transformers.BertForSequenceClassification.from_pretrained(opt.bert_dir, config=config)
         elif opt.task_type == 'docvqa':
             model = BertForQA(opt)
     elif opt.network_type == 'roberta':
         if opt.task_type == 'token-classifier': 
             model = RobertaTokenClassifier(opt)
         elif opt.task_type == 'sequence-classifier':
-            model = RobertaSequenceClassifier(opt)
+            config = AutoConfig.from_pretrained(opt.roberta_dir)
+            config.num_labels = opt.num_labels
+            model = transformers.RobertaForSequenceClassification.from_pretrained(opt.roberta_dir, config=config)
         elif opt.task_type == 'docvqa':
             model = RobertaForQA(opt)
     elif opt.network_type == 'layoutlmv3_disent':
@@ -70,6 +79,10 @@ def setup(opt):
             config = AutoConfig.from_pretrained(opt.checkpoint_path)
             config.num_labels=opt.num_labels    # set label num from mydataset
             model = DiscentTokClassifier.from_pretrained(opt.checkpoint_path, config = config)
+        elif opt.task_type == 'sequence-classifier':
+            config = AutoConfig.from_pretrained(opt.checkpoint_path)
+            config.num_labels=opt.num_labels    # set label num from mydataset
+            model = layoutlmv3_disent.LayoutLMv3ForSequenceClassification.from_pretrained(opt.checkpoint_path,config = config)
         print('attention mode:',config.spatial_attention_update)
     elif opt.network_type == 'spatial_lm':
         if opt.task_type in ['mlm','blm']:

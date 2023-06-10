@@ -16,6 +16,7 @@ class BertTokenClassifier(nn.Module):
         self.opt = opt
         self.num_labels = opt.num_labels
         self.config = BertConfig.from_pretrained(opt.bert_dir)
+        # self.config.num_labels = opt.num_labels
         self.bert = BertModel.from_pretrained(opt.bert_dir,config=self.config, add_pooling_layer=False)
         classifier_dropout = (
             self.config.classifier_dropout if self.config.classifier_dropout is not None else self.config.hidden_dropout_prob

@@ -90,6 +90,8 @@ class LayoutLMv2Embeddings(nn.Module):
 
         # h_position_embeddings = self.h_position_embeddings(bbox[:, :, 3] - bbox[:, :, 1])
         # w_position_embeddings = self.w_position_embeddings(bbox[:, :, 2] - bbox[:, :, 0])
+        # h_position_embeddings = self.h_position_embeddings(torch.abs(bbox[:, :, 3] - bbox[:, :, 1]))
+        # w_position_embeddings = self.w_position_embeddings(torch.abs(bbox[:, :, 2] - bbox[:, :, 0]))
         h_position_embeddings = self.h_position_embeddings(torch.clip(bbox[:, :, 3] - bbox[:, :, 1], 0, 1023))
         w_position_embeddings = self.w_position_embeddings(torch.clip(bbox[:, :, 2] - bbox[:, :, 0], 0, 1023))
         spatial_position_embeddings = torch.cat(
