@@ -112,8 +112,8 @@ class MyTrainer:
         # mlm= True uses masked language model; otherwise, causal LM (NTP); 
         # logging_steps = len(mydata.train_dataset)  //opt.batch_size
         # split into smaller 
-        trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=0.001)
-
+        # trainable_ds = mydata.trainable_ds.shuffle(seed=88).train_test_split(test_size=0.001)
+        trainable_ds = mydata.trainable_ds
 
         training_args = TrainingArguments(
             output_dir = opt.checkpoint_save_path,
@@ -127,7 +127,7 @@ class MyTrainer:
             push_to_hub = False,
             # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
             evaluation_strategy = "epoch",
-            save_strategy="epoch",  # no, epoch, steps
+            save_strategy=opt.save_strategy,  # no, epoch, steps
             overwrite_output_dir=True,  # use only one dir
             prediction_loss_only = True,
             # logging_dir='./logs',  
@@ -179,9 +179,9 @@ class MyTrainer:
 
     def compute_metrics(self, p):
         # sequence classification 
-        if self.opt.task_type == 'sequence-classifier':
+        if self.opt.task_type in ['sequence-classifier','docbqa']:
             return self.acc_and_f1(p)
-        
+
         # token classification
         metric = evaluate.load("seqeval")
 

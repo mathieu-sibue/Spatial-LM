@@ -9,7 +9,7 @@ from LMs.layoutlmv3_disent import LayoutLMv3ForMaskedLM
 from LMs.layoutlmv3_disent import LayoutLMv3ForTokenClassification as DiscentTokClassifier
 from LMs.bert import BertTokenClassifier,BertForQA, BertSequenceClassifier
 from LMs.layoutlmv2 import LayoutLMv2ForTokenClassification, LayoutLMv2Config
-from LMs.layoutlmv1 import LayoutLMForTokenClassification, LayoutLMForSequenceClassification
+from LMs.layoutlmv1 import LayoutLMForTokenClassification, LayoutLMForSequenceClassification, LayoutLMForQuestionAnswering, LayoutLMForBinaryQA
 import transformers
 from LMs import layoutlmv3_disent
 
@@ -29,6 +29,10 @@ def setup(opt):
             model = LayoutLMForTokenClassification.from_pretrained(opt.layoutlm_dir,config=config)
         elif opt.task_type == 'sequence-classifier':
             model = LayoutLMForSequenceClassification.from_pretrained(opt.layoutlm_dir, config = config)
+        elif opt.task_type == 'docvqa':
+            model = LayoutLMForQuestionAnswering.from_pretrained(opt.layoutlm_dir,config=config)
+        elif opt.task_type == 'docbqa':
+            model = LayoutLMForBinaryQA.from_pretrained(opt.layoutlm_dir,config=config)
     elif opt.network_type == 'layoutlmv2':
         config = LayoutLMv2Config.from_pretrained(opt.layoutlm_dir)   # borrow config
         config.num_labels=opt.num_labels    # set label num

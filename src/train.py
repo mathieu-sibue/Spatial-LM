@@ -39,7 +39,7 @@ if __name__=='__main__':
 
     # # section 5, train (finetune)
     mytrainer = MyTrainer(params)
-    if params.dataset_name == 'docvqa_ocr':
+    if 'vqa' in params.dataset_name:
         mytrainer.train_docvqa(params, model, mydata)
     else:
         mytrainer.train(params, model, mydata)

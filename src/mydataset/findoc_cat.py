@@ -153,7 +153,7 @@ class FinDoc:
             # 2) add extended bbox and labels
             encodings['bbox'] = token_boxes[:self.opt.max_seq_len]
             # 3) add class labels separately for sequence classification
-            encodings['labels'] =  sample[self.label_col_name]
+            encodings['labels'] =  self.opt.label2id[sample[self.label_col_name]]
 
             return encodings
 

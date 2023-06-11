@@ -22,6 +22,10 @@ def setup(opt):
         from mydataset.findoc_ner import FinDoc as MyData
     elif opt.dataset_name.lower() == 'findoc_cat':
         from mydataset.findoc_cat import FinDoc as MyData
+    elif opt.dataset_name.lower() == 'findoc_vqa':
+        from mydataset.findoc_vqa import FinDoc as MyData
+    elif opt.dataset_name.lower() == 'findoc_bqa':
+        from mydataset.findoc_bqa import FinDoc as MyData
     else:
         raise Exception('dataset not supported:{}'.format(opt.dataset_name))
 

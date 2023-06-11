@@ -17,14 +17,14 @@ class FinDoc:
         assert isinstance(self.tokenizer, transformers.PreTrainedTokenizerFast)  # get sub
         self.processor = AutoProcessor.from_pretrained(opt.layoutlm_dir,tokenizer=self.tokenizer, apply_ocr=False)    # wrap of featureExtract & tokenizer
 
-        # self.label_col_name = "doc_class"
+        self.label_col_name = "bool_label"
 
         # step 2.1: get raw ds (already normalized bbox, img object)
         raw_train, raw_test = self.get_raw_ds()
         # step 2.2, get  label_list and label2id dict
-        # opt.id2label, opt.label2id, opt.label_list = self._get_label_map(raw_train)
-        opt.num_labels = 2
-        # print('label list:',opt.label_list)
+        opt.id2label, opt.label2id, opt.label_list = self._get_label_map(raw_train)
+        opt.num_labels = len(opt.label_list)    # expected to be 2 here
+        print('label list:',opt.label_list)
         # load img and norm bbox with max=1000
         normed_train, normed_test = self.get_normed_ds(raw_train), self.get_normed_ds(raw_test)
 
@@ -126,7 +126,7 @@ class FinDoc:
             tokens = []
             tboxes = []
             bboxes = []
-        
+
             for tokID in sorted(tokID_text.keys()):
                 tokens.append(tokID_text[tokID])
                 tboxes.append(tokID_tbox[tokID])
@@ -137,13 +137,13 @@ class FinDoc:
 
             # 4) add QA pairs and share the use of doc 
             for vqa in doc['qa']:
-                if vqa['type'] == 'span':
+                if vqa['type'].lower() == 'yes/no':
                     q,a  = vqa['question'], vqa['answer']
-                    sorted_ans = sorted(a[0])
+                    ans = 'Y' if a.lower() == 'yes' else 'N'
                     yield {
                         "id": doc_idx, "tokens": tokens,"tboxes":tboxes, "bboxes": bboxes, 
                         "image_path":img_path, "size":size,
-                        'question': q, 'ans_start': sorted_ans[0], 'ans_end': sorted_ans[-1]
+                        'question': q, 'bool_label':ans
                     }
 
             # yield {"id": doc_idx, "tokens": tokens,"tboxes":tboxes, "bboxes": bboxes, "doc_class": doc_class_id, 
@@ -165,20 +165,8 @@ class FinDoc:
                 max_length=self.opt.max_seq_len, padding="max_length", truncation=True)
             # 2) add extended bbox and labels
             encodings['bbox'] = token_boxes[:self.opt.max_seq_len]
-            # 3) add start and end positions
-            ans_starts = sample['ans_start']
-            ans_ends = sample['ans_end']
-
-            # print(encodings)
-            # print(ans_starts)
-            # print(ans_ends)
-            # print(sample['question'])
-            # print([sample['tokens'][i] for i in range(ans_starts,ans_ends+1)])
- 
-            answer_start_index, answer_end_index = self._ans_index_range(encodings,-1,ans_starts, ans_ends)
-
-            encodings['start_positions'] = answer_start_index
-            encodings['end_positions'] = answer_end_index
+            # 3) add label
+            encodings['labels'] =  self.opt.label2id[sample[self.label_col_name]]
 
             return encodings
 
@@ -188,8 +176,7 @@ class FinDoc:
             'token_type_ids':Sequence(feature=Value(dtype='int64')),
             'attention_mask': Sequence(Value(dtype='int64')),
             'bbox': Array2D(dtype="int64", shape=(512, 4)),
-            'start_positions': Value(dtype='int64'),
-            'end_positions': Value(dtype='int64'),
+            'labels': Value(dtype='int64'),
         })
         processed_ds = ds.map(_preprocess, num_proc=os.cpu_count(), 
             remove_columns=ds.column_names, features=features).with_format("torch") 
@@ -208,30 +195,12 @@ class FinDoc:
             else:
                 return_type = False
             # no idea why layoutlmv2 use token_type_ids, maybe just default with no reason
-            encodings = self.processor(images=batch['image'],batch['question'], batch['tokens'], boxes=batch['bboxes'],
+            encodings = self.processor(images=batch['image'],batch['question'],batch['tokens'], boxes=batch['bboxes'],
                             return_token_type_ids = return_type,
                             truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
-            
+
             # 2) add labels separately for sequence classification
-            ans_starts = batch['ans_start']
-            ans_ends = batch['ans_end']
-            ans_start_positions = []
-            ans_end_positions = []
-            for batch_index in range(len(ans_starts)):
-                ans_word_idx_start, ans_word_idx_end = ans_starts[batch_index],ans_ends[batch_index]
-
-                answer_start_index, answer_end_index = self._ans_index_range(encodings,batch_index,ans_word_idx_start, ans_word_idx_end)
-                ans_start_positions.append(answer_start_index)
-                ans_end_positions.append(answer_end_index)
-                # print("Verifying start position and end position:===")
-                # print("True answer:", answers[batch_index])
-                # reconstructed_answer = self.tokenizer.decode(encoding.input_ids[batch_index][answer_start_index:answer_end_index+1])
-                # print("Reconstructed answer:", reconstructed_answer)
-                # print("-----------")
-
-            # 3.3 append the ans_start, ans_end_index
-            encodings['start_positions'] = ans_start_positions
-            encodings['end_positions'] = ans_end_positions
+            encodings['labels'] = [self.opt.label2id[label] for label in batch[self.label_col_name] ]
 
             return encodings
 
