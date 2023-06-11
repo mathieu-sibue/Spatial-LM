@@ -7,7 +7,7 @@ from transformers import BertForTokenClassification, BertForQuestionAnswering
 import torch
 from transformers.utils import ModelOutput
 from torch.nn import CrossEntropyLoss
-
+from typing import Optional, Tuple, Union
 
 
 class BertTokenClassifier(nn.Module):
@@ -58,6 +58,43 @@ class BertForQA(nn.Module):
             end_positions = end_positions
         )
         return outputs
+
+class BertForBinaryQA(nn.Module):
+    def __init__(self, opt, has_visual_segment_embedding=True):
+        super(BertForBinaryQA, self).__init__()
+        self.opt = opt
+        self.config = BertConfig.from_pretrained(opt.bert_dir)
+        self.config.num_labels = opt.num_labels
+        # self.roberta = RobertaModel(self.config)
+        self.bert = BertModel.from_pretrained(opt.bert_dir, config=self.config)
+        self.classifier = nn.Linear(self.config.hidden_size, opt.num_labels)
+        # self.classifier = RobertaClassificationHead(self.config)
+
+    def forward(self,
+                input_ids: Optional[torch.LongTensor] = None, 
+                attention_mask: Optional[torch.FloatTensor] = None,
+                token_type_ids: Optional[torch.LongTensor] = None,
+                labels: Optional[torch.LongTensor] = None,
+            ):
+
+        outputs = self.bert(input_ids = input_ids, attention_mask = attention_mask, token_type_ids = token_type_ids)
+        # use the first token CLS state for sentence-level prediction
+        # last_hidden_state_cls = outputs[0][:,0,:] # (batch_size, seq_len, dim)  => (batch_size, 1, dim)
+        hidden_state = outputs[0]  # (batch_size, seq_len, dim)
+        pooled_output = hidden_state[:, 0]  # (batch_size, dim) for first token CLS state
+        # feet input to classifier to compute logits
+        logits = self.classifier(pooled_output)
+
+        # calculate loss
+        loss = None
+        if labels is not None:
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.opt.num_labels), labels.view(-1))
+
+        return ModelOutput(
+            loss=loss,
+            logits = logits
+        )
 
 
 class BertSequenceClassifier(nn.Module):

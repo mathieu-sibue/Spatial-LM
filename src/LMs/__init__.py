@@ -7,7 +7,7 @@ from LMs.SpatialLM import SpatialLMForMaskedLM, SpatialLMForTokenclassifier, Spa
 from transformers import AutoConfig, AutoModel
 from LMs.layoutlmv3_disent import LayoutLMv3ForMaskedLM
 from LMs.layoutlmv3_disent import LayoutLMv3ForTokenClassification as DiscentTokClassifier
-from LMs.bert import BertTokenClassifier,BertForQA, BertSequenceClassifier
+from LMs.bert import BertTokenClassifier,BertForQA, BertSequenceClassifier, BertForBinaryQA
 from LMs.layoutlmv2 import LayoutLMv2ForTokenClassification, LayoutLMv2Config
 from LMs.layoutlmv1 import LayoutLMForTokenClassification, LayoutLMForSequenceClassification, LayoutLMForQuestionAnswering, LayoutLMForBinaryQA
 import transformers
@@ -48,10 +48,10 @@ def setup(opt):
             model = transformers.LayoutLMv3ForSequenceClassification.from_pretrained(opt.layoutlm_dir,config = config)
         elif opt.task_type == 'docvqa':
             config.num_labels = 2   # change back to 2
-            model = transformers.LayoutLMv3ForQuestionAnswering(opt.layoutlm_dir, config=config)
+            model = transformers.LayoutLMv3ForQuestionAnswering.from_pretrained(opt.layoutlm_dir, config=config)
         elif opt.task_type == 'docbqa':
             config.num_labels = 2   # change back to 2
-            model = layoutlmv3.LayoutLMv3ForBinaryQA(opt.layoutlm_dir, config=config)
+            model = layoutlmv3.LayoutLMv3ForBinaryQA.from_pretrained(opt.layoutlm_dir, config=config)
     elif opt.network_type == 'bert':
         if opt.task_type == 'token-classifier':
             model = BertTokenClassifier(opt)
@@ -61,6 +61,8 @@ def setup(opt):
             model = transformers.BertForSequenceClassification.from_pretrained(opt.bert_dir, config=config)
         elif opt.task_type == 'docvqa':
             model = BertForQA(opt)
+        elif opt.task_type == 'docbqa':
+            model = BertForBinaryQA(opt)
     elif opt.network_type == 'roberta':
         if opt.task_type == 'token-classifier': 
             model = RobertaTokenClassifier(opt)
@@ -94,6 +96,10 @@ def setup(opt):
             config = AutoConfig.from_pretrained(opt.checkpoint_path)
             config.num_labels=opt.num_labels    # set label num from mydataset
             model = layoutlmv3_disent.LayoutLMv3ForSequenceClassification.from_pretrained(opt.checkpoint_path,config = config)
+        elif opt.task_type == 'docbqa':
+            config = AutoConfig.from_pretrained(opt.checkpoint_path)
+            config.num_labels=opt.num_labels    # set label num from mydataset
+            model = layoutlmv3_disent.DesentForBinaryQA.from_pretrained(opt.checkpoint_path,config=config)
         print('attention mode:',config.spatial_attention_update)
     elif opt.network_type == 'spatial_lm':
         if opt.task_type in ['mlm','blm']:

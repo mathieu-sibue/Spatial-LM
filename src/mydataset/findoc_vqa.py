@@ -153,18 +153,21 @@ class FinDoc:
 
     def get_processed_for_bertx(self,ds):
         def _preprocess(sample):
-            token_boxes = []
-            for word, box in zip(sample['tokens'], sample['bboxes']):
-                word_tokens = self.tokenizer.tokenize(word)
-                token_boxes.extend([box] * len(word_tokens))
-            # add bounding boxes of cls + sep tokens
-            token_boxes = [[0, 0, 0, 0]] + token_boxes + [[1000, 1000, 1000, 1000]]*(self.opt.max_seq_len-len(token_boxes)-1)
-            # == wrap the sample into: {input_ids, token_type_ids, attention_mask, bbox, labels} ==
-            # 1) tokenize, here, you must join the 'tokens' as one 'text' in a conventional way
-            encodings = self.tokenizer(sample['question'], " ".join(sample['tokens']), return_token_type_ids = True,
-                max_length=self.opt.max_seq_len, padding="max_length", truncation=True)
+            # 1) encode
+            encoding = self.tokenizer(sample['question'].split(),sample['tokens'],is_split_into_words=True,return_token_type_ids = True,
+                truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
+
             # 2) add extended bbox and labels
-            encodings['bbox'] = token_boxes[:self.opt.max_seq_len]
+            bboxes = []
+            for i, s, w in zip(encoding.input_ids, encoding.sequence_ids(), encoding.word_ids()):
+                if s == 1:
+                    bboxes.append(sample['bboxes'][w])
+                elif i == self.tokenizer.sep_token_id:
+                    bboxes.append([1000] * 4)
+                else:
+                    bboxes.append([0] * 4)
+            encoding["bbox"] = bboxes[:self.opt.max_seq_len]
+
             # 3) add start and end positions
             ans_starts = sample['ans_start']
             ans_ends = sample['ans_end']
@@ -203,15 +206,11 @@ class FinDoc:
 
         # otherwise
         def _preprocess(batch):
-            if self.opt.network_type == 'layoutlmv2': 
-                return_type = True
-            else:
-                return_type = False
             # no idea why layoutlmv2 use token_type_ids, maybe just default with no reason
             encodings = self.processor(batch['image'],batch['question'], batch['tokens'], boxes=batch['bboxes'],
-                            return_token_type_ids = return_type,
+                            return_token_type_ids = True,
                             truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
-            
+
             # 2) add labels separately for sequence classification
             ans_starts = batch['ans_start']
             ans_ends = batch['ans_end']
@@ -249,6 +248,7 @@ class FinDoc:
             features = Features({
                 'pixel_values' : Array3D(dtype="float32", shape=(3, 224, 224)),
                 'input_ids': Sequence(feature=Value(dtype='int64')),
+                'token_type_ids':Sequence(feature=Value(dtype='int64')),
                 'attention_mask': Sequence(Value(dtype='int64')),
                 'bbox': Array2D(dtype="int64", shape=(512, 4)),
                 'labels': Value(dtype='int64'),

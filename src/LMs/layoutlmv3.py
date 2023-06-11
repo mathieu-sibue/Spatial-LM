@@ -1494,7 +1494,7 @@ class LayoutLMv3ForBinaryQA(LayoutLMv3PreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
 
-        self.layoutlm = LayoutLMModel(config)
+        self.layoutlmv3 = LayoutLMv3Model(config)
         self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
 
         # Initialize weights and apply final processing
@@ -1521,7 +1521,7 @@ class LayoutLMv3ForBinaryQA(LayoutLMv3PreTrainedModel):
 
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs = self.layoutlm(
+        outputs = self.layoutlmv3(
             input_ids=input_ids,
             bbox=bbox,
             attention_mask=attention_mask,
