@@ -7,6 +7,8 @@ from transformers import RobertaForTokenClassification, AutoModelForQuestionAnsw
 import torch
 from transformers.utils import ModelOutput
 from torch.nn import CrossEntropyLoss
+from typing import Optional, Tuple, Union
+
 
 class GraphRobertaTokenClassifier(nn.Module):
     def __init__(self,opt):
@@ -93,31 +95,55 @@ class RobertaForQA(nn.Module):
         return outputs
 
 
-class RobertaSequenceClassifier(nn.Module):
-    def __init__(self, opt, freeze_bert=False):
-        super(RobertaClassifier, self).__init__()
+
+class RobertaClassificationHead(nn.Module):
+    """Head for sentence-level classification tasks."""
+
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        classifier_dropout = (
+            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
+        )
+        self.dropout = nn.Dropout(classifier_dropout)
+        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
+
+    def forward(self, features, **kwargs):
+        x = features # take <s> token (equiv. to [CLS])
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+
+
+class RobertaForBinaryQA(nn.Module):
+    def __init__(self, opt, has_visual_segment_embedding=True):
+        super(RobertaForBinaryQA, self).__init__()
         self.opt = opt
         self.config = RobertaConfig.from_pretrained(opt.roberta_dir)
+        self.config.num_labels = opt.num_labels
         # self.roberta = RobertaModel(self.config)
         self.roberta = RobertaModel.from_pretrained(opt.roberta_dir, config=self.config)
 
+        self.classifier = RobertaClassificationHead(self.config)
+        # self.classifier = nn.Sequential(
+        #     nn.Linear(self.opt.input_dim,self.opt.input_dim),   # hidden dim
+        #     nn.ReLU(),
+        #     nn.Dropout(self.opt.dropout),
+        #     nn.Linear(self.opt.input_dim, self.opt.num_labels),
+        #     nn.Sigmoid()
+        # )
 
-        self.classifier = nn.Sequential(
-            nn.Linear(self.opt.input_dim,self.opt.input_dim),   # hidden dim
-            nn.ReLU(),
-            nn.Dropout(self.opt.dropout),
-            nn.Linear(self.opt.input_dim, self.opt.num_labels),
-            nn.Sigmoid()
-        )
+    def forward(self,
+                input_ids: Optional[torch.LongTensor] = None, 
+                attention_mask: Optional[torch.FloatTensor] = None,
+                token_type_ids: Optional[torch.LongTensor] = None,
+                labels: Optional[torch.LongTensor] = None,
+            ):
 
-        # freeze the bert model
-        if freeze_bert:
-            for param in self.roberta.parameters():
-                param.requires_grad = False
-
-
-    def forward(self,input_ids, attention_mask):
-        outputs = self.roberta(input_ids = input_ids, attention_mask = attention_mask)
+        outputs = self.roberta(input_ids = input_ids, attention_mask = attention_mask, token_type_ids = token_type_ids)
         # use the first token CLS state for sentence-level prediction
         # last_hidden_state_cls = outputs[0][:,0,:] # (batch_size, seq_len, dim)  => (batch_size, 1, dim)
         hidden_state = outputs[0]  # (batch_size, seq_len, dim)
@@ -125,5 +151,13 @@ class RobertaSequenceClassifier(nn.Module):
         # feet input to classifier to compute logits
         logits = self.classifier(pooled_output)
 
-        return logits
+        # calculate loss
+        loss = None
+        if labels is not None:
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.opt.num_labels), labels.view(-1))
 
+        return ModelOutput(
+            loss=loss,
+            logits = logits
+        )

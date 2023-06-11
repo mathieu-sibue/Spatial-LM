@@ -2,7 +2,7 @@
 # from LMs.Roberta import RobertaClassifier
 from LMs.LayoutLM import LayoutLMTokenclassifier
 from LMs.LayoutLM import LayoutLM4DocVQA
-from LMs.Roberta import RobertaSequenceClassifier, RobertaTokenClassifier
+from LMs.Roberta import RobertaTokenClassifier, RobertaForBinaryQA
 from LMs.SpatialLM import SpatialLMForMaskedLM, SpatialLMForTokenclassifier, SpatialLMConfig, SpatialLMForSequenceClassification, SpatialLMForDocVQA
 from transformers import AutoConfig, AutoModel
 from LMs.layoutlmv3_disent import LayoutLMv3ForMaskedLM
@@ -12,6 +12,8 @@ from LMs.layoutlmv2 import LayoutLMv2ForTokenClassification, LayoutLMv2Config
 from LMs.layoutlmv1 import LayoutLMForTokenClassification, LayoutLMForSequenceClassification, LayoutLMForQuestionAnswering, LayoutLMForBinaryQA
 import transformers
 from LMs import layoutlmv3_disent
+from LMs import layoutlmv3
+
 
 def setup(opt):
     print('network:' + opt.network_type)
@@ -47,6 +49,9 @@ def setup(opt):
         elif opt.task_type == 'docvqa':
             config.num_labels = 2   # change back to 2
             model = transformers.LayoutLMv3ForQuestionAnswering(opt.layoutlm_dir, config=config)
+        elif opt.task_type == 'docbqa':
+            config.num_labels = 2   # change back to 2
+            model = layoutlmv3.LayoutLMv3ForBinaryQA(opt.layoutlm_dir, config=config)
     elif opt.network_type == 'bert':
         if opt.task_type == 'token-classifier':
             model = BertTokenClassifier(opt)
@@ -65,6 +70,8 @@ def setup(opt):
             model = transformers.RobertaForSequenceClassification.from_pretrained(opt.roberta_dir, config=config)
         elif opt.task_type == 'docvqa':
             model = RobertaForQA(opt)
+        elif opt.task_type == 'docbqa':
+            model = RobertaForBinaryQA(opt)
     elif opt.network_type == 'layoutlmv3_disent':
         if opt.task_type in ['mlm','blm']:
             # from_pretrained is put inside or outside

@@ -140,6 +140,11 @@ class FinDoc:
                 if vqa['type'].lower() == 'yes/no':
                     q,a  = vqa['question'], vqa['answer']
                     ans = 'Y' if a.lower() == 'yes' else 'N'
+                    
+                    print(q)
+                    print(a)
+                    print(ans)
+
                     yield {
                         "id": doc_idx, "tokens": tokens,"tboxes":tboxes, "bboxes": bboxes, 
                         "image_path":img_path, "size":size,
@@ -195,7 +200,7 @@ class FinDoc:
             else:
                 return_type = False
             # no idea why layoutlmv2 use token_type_ids, maybe just default with no reason
-            encodings = self.processor(images=batch['image'],batch['question'],batch['tokens'], boxes=batch['bboxes'],
+            encodings = self.processor(batch['image'],batch['question'],batch['tokens'], boxes=batch['bboxes'],
                             return_token_type_ids = return_type,
                             truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
 

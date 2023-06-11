@@ -208,7 +208,7 @@ class FinDoc:
             else:
                 return_type = False
             # no idea why layoutlmv2 use token_type_ids, maybe just default with no reason
-            encodings = self.processor(images=batch['image'],batch['question'], batch['tokens'], boxes=batch['bboxes'],
+            encodings = self.processor(batch['image'],batch['question'], batch['tokens'], boxes=batch['bboxes'],
                             return_token_type_ids = return_type,
                             truncation=True, padding='max_length', max_length=self.opt.max_seq_len)
             
