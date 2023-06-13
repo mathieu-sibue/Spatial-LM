@@ -2,7 +2,7 @@
 import torch.nn as nn
 
 from transformers import BertModel, BertConfig
-from transformers import BertForTokenClassification, BertForQuestionAnswering
+from transformers import BertForTokenClassification, BertForQuestionAnswering, AutoModelForQuestionAnswering
 
 import torch
 from transformers.utils import ModelOutput

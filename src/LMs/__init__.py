@@ -2,7 +2,7 @@
 # from LMs.Roberta import RobertaClassifier
 from LMs.LayoutLM import LayoutLMTokenclassifier
 from LMs.LayoutLM import LayoutLM4DocVQA
-from LMs.Roberta import RobertaTokenClassifier, RobertaForBinaryQA
+from LMs.Roberta import RobertaTokenClassifier, RobertaForBinaryQA, RobertaForQA
 from LMs.SpatialLM import SpatialLMForMaskedLM, SpatialLMForTokenclassifier, SpatialLMConfig, SpatialLMForSequenceClassification, SpatialLMForDocVQA
 from transformers import AutoConfig, AutoModel
 from LMs.layoutlmv3_disent import LayoutLMv3ForMaskedLM
@@ -13,7 +13,7 @@ from LMs.layoutlmv1 import LayoutLMForTokenClassification, LayoutLMForSequenceCl
 import transformers
 from LMs import layoutlmv3_disent
 from LMs import layoutlmv3
-
+from LMs import layoutlmv2
 
 def setup(opt):
     print('network:' + opt.network_type)
@@ -37,8 +37,11 @@ def setup(opt):
             model = LayoutLMForBinaryQA.from_pretrained(opt.layoutlm_dir,config=config)
     elif opt.network_type == 'layoutlmv2':
         config = LayoutLMv2Config.from_pretrained(opt.layoutlm_dir)   # borrow config
-        config.num_labels=opt.num_labels    # set label num
-        model = LayoutLMv2ForTokenClassification.from_pretrained(opt.layoutlm_dir,config=config)
+        if opt.task_type == 'token-classifier':
+            config.num_labels=opt.num_labels    # set label num
+            model = LayoutLMv2ForTokenClassification.from_pretrained(opt.layoutlm_dir,config=config)
+        elif opt.task_type == 'docvqa':
+            model = layoutlmv2.LayoutLMv2ForQuestionAnswering.from_pretrained(opt.layoutlm_dir, config=config)
     elif opt.network_type == 'layoutlmv3':
         config = AutoConfig.from_pretrained(opt.layoutlm_dir)   # borrow config
         config.num_labels=opt.num_labels    # set label num
@@ -64,16 +67,17 @@ def setup(opt):
         elif opt.task_type == 'docbqa':
             model = BertForBinaryQA(opt)
     elif opt.network_type == 'roberta':
+        config = AutoConfig.from_pretrained(opt.roberta_dir)
         if opt.task_type == 'token-classifier': 
             model = RobertaTokenClassifier(opt)
         elif opt.task_type == 'sequence-classifier':
-            config = AutoConfig.from_pretrained(opt.roberta_dir)
             config.num_labels = opt.num_labels
             model = transformers.RobertaForSequenceClassification.from_pretrained(opt.roberta_dir, config=config)
         elif opt.task_type == 'docvqa':
             model = RobertaForQA(opt)
+            # model = transformers.RobertaForQuestionAnswering.from_pretrained(opt.roberta_dir, config=config)
         elif opt.task_type == 'docbqa':
-            model = RobertaForBinaryQA(opt)
+            RobertaForBinaryQA(opt)
     elif opt.network_type == 'layoutlmv3_disent':
         if opt.task_type in ['mlm','blm']:
             # from_pretrained is put inside or outside
