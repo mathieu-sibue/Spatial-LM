@@ -21,6 +21,7 @@ class FinDoc:
 
         # step 2.1: get raw ds (already normalized bbox, img object)
         raw_train, raw_test = self.get_raw_ds()
+        self.raw_test = raw_test    # ===== in order to use the question as pairs =====
         # step 2.2, get  label_list and label2id dict
         # opt.id2label, opt.label2id, opt.label_list = self._get_label_map(raw_train)
         opt.num_labels = 2
@@ -60,6 +61,9 @@ class FinDoc:
     def get_raw_ds(self):
         train = Dataset.from_generator(self.ds_generator, gen_kwargs={'base_dir':self.opt.findoc_dir,'split':'train'})
         test = Dataset.from_generator(self.ds_generator, gen_kwargs={'base_dir':self.opt.findoc_dir,'split':'test'})
+        if self.opt.test_small_samp>0:
+            train = Dataset.from_dict(train[:self.opt.test_small_samp])
+            test = Dataset.from_dict(test[:self.opt.test_small_samp])
         # train = Dataset.from_dict(self.ds_generator(self.opt.findoc_dir,'val'))
         return train, test
 
@@ -139,13 +143,28 @@ class FinDoc:
             for vqa in doc['qa']:
                 if vqa['type'] == 'span':
                     q,a  = vqa['question'], vqa['answer']
-                    sorted_ans = sorted(a[0])
-                    yield {
-                        "id": doc_idx, "tokens": tokens,"tboxes":tboxes, "bboxes": bboxes, 
-                        "image_path":img_path, "size":size,
-                        'question': q, 'ans_start': sorted_ans[0], 'ans_end': sorted_ans[-1]
-                    }
-
+                    cand_ans = []
+                    starts, ends = [],[]
+                    for ans in a:
+                        # print(ans)
+                        sorted_ans = sorted(ans)
+                        if sorted_ans[-1] - sorted_ans[0] == len(ans)-1:
+                            ans_str = " ".join([tokens[i] for i in sorted_ans])
+                            cand_ans.append(ans_str)
+                            starts.append(sorted_ans[0])
+                            ends.append(sorted_ans[-1])
+                            # print('docid:', doc_idx)
+                            # print(q)
+                            # print([tokens[i] for i in sorted_ans])
+                            # print(sorted_ans)
+                            # print('-----')
+                    if cand_ans:
+                        yield {
+                            "id": doc_idx, "tokens": tokens,"tboxes":tboxes, "bboxes": bboxes, 
+                            "image_path":img_path, "size":size,
+                            'question': q, 'ans_strs':cand_ans, 'ans_start': starts[0], 'ans_end': ends[0]
+                        }
+            # input('---')
             # yield {"id": doc_idx, "tokens": tokens,"tboxes":tboxes, "bboxes": bboxes, "doc_class": doc_class_id, 
             #     "image_path": img_path, "size":size}
             # print(item)
@@ -178,12 +197,12 @@ class FinDoc:
             # print(sample['question'])
             # print([sample['tokens'][i] for i in range(ans_starts,ans_ends+1)])
  
-            answer_start_index, answer_end_index = self._ans_index_range(encodings,-1,ans_starts, ans_ends)
+            answer_start_index, answer_end_index = self._ans_index_range(encoding,-1,ans_starts, ans_ends)
 
-            encodings['start_positions'] = answer_start_index
-            encodings['end_positions'] = answer_end_index
+            encoding['start_positions'] = answer_start_index
+            encoding['end_positions'] = answer_end_index
 
-            return encodings
+            return encoding
 
         features = Features({
             'input_ids': Sequence(feature=Value(dtype='int64')),
@@ -234,7 +253,7 @@ class FinDoc:
 
             return encodings
 
-
+        # layoutv2 use image instead of pixel_values
         if self.opt.network_type == 'layoutlmv2':
             features = Features({
                 'image' : Array3D(dtype="float32", shape=(3, 224, 224)),
@@ -242,7 +261,8 @@ class FinDoc:
                 'token_type_ids':Sequence(feature=Value(dtype='int64')),
                 'attention_mask': Sequence(Value(dtype='int64')),
                 'bbox': Array2D(dtype="int64", shape=(512, 4)),
-                'labels': Value(dtype='int64'),
+                'start_positions': Value(dtype='int64'),
+                'end_positions': Value(dtype='int64'),
             })
         else:
             features = Features({
@@ -251,7 +271,8 @@ class FinDoc:
                 'token_type_ids':Sequence(feature=Value(dtype='int64')),
                 'attention_mask': Sequence(Value(dtype='int64')),
                 'bbox': Array2D(dtype="int64", shape=(512, 4)),
-                'labels': Value(dtype='int64'),
+                'start_positions': Value(dtype='int64'),
+                'end_positions': Value(dtype='int64'),
             })
         # processed_ds = ds.map(_preprocess, batched=True, num_proc=self.cpu_num, 
         #     remove_columns=['id','tokens', 'bboxes','ner_tags','block_ids','image'], features=features).with_format("torch")

@@ -10,7 +10,9 @@ import numpy as np
 from transformers import DataCollatorForLanguageModeling
 import evaluate
 from LMs.mycollator import BlockMaskingDataCollator
-
+from tqdm.auto import tqdm
+import math
+from LMs.myinferencer import MyInferencer
 
 class MyTrainer:
     def __init__(self,opt):
@@ -143,8 +145,9 @@ class MyTrainer:
             # tokenizer = mydata.tokenizer
         )
         trainer.train()
-        if bool(self.opt.save_model):
-            trainer.save_model(opt.save_path)
+        # test
+        infer = MyInferencer(self.opt)
+        infer.inference_and_evaluate(model,mydata)
 
     # def compute_metrics(eval_preds):
     #     metric = evaluate.load("seqeval")
@@ -221,6 +224,4 @@ class MyTrainer:
             "f1": results["overall_f1"],
             "accuracy": results["overall_accuracy"],
         }
-
-        
 

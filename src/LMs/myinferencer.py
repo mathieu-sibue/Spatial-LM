@@ -3,6 +3,7 @@ import numpy as np
 import os
 from torch.utils.data import DataLoader
 import json
+import Levenshtein as lev
 
 class MyInferencer:
     def __init__(self,opt):
@@ -74,7 +75,48 @@ class MyInferencer:
         self.save_res(save_to_file,res)
         return res
 
-    def save_res(self,path,performance_str):
-        with open(path, 'w') as f:
-            f.write(str(performance_str))
 
+    def inference_and_evaluate(self, model, mydata):
+        # 1 load dataset
+        # test_dataset = mydata.test_dataset
+        loader_test = DataLoader(mydata.trainable_ds['test'], batch_size=self.opt.batch_size*3)
+
+        model.eval()
+        res = []
+        # 2. iterate and inference
+        # for row in test_dataset:
+        for batch_index, batch in enumerate(loader_test):
+            # print(batch_index)
+            
+            with torch.no_grad():
+                batch = {k:v.to(self.opt.device) for k,v in batch.items()}
+                outputs = model(**batch)
+                # 3.1 get start_logits and end_logits
+                start_logits = outputs.start_logits
+                end_logits = outputs.end_logits
+
+                # 3.2: get largest logit for both
+                for idx, (s,e) in enumerate(zip(start_logits,end_logits)):
+                    predicted_start_idx = s.argmax(-1).item()    # item() is to get scalars
+                    predicted_end_idx = e.argmax(-1).item()
+                    # print("Predicted start idx:", predicted_start_idx)
+                    # print("Predicted end idx:", predicted_end_idx)
+                    # 4. get the text answer
+                    answer = mydata.tokenizer.decode(batch['input_ids'][idx][predicted_start_idx:predicted_end_idx+1]) 
+                    res.append(answer)
+
+        # test
+        scores = []
+        for cand_ans,pred in zip(mydata.raw_test['ans_strs'], res):
+            print(pred, ' -v.s.- ',str(cand_ans))
+            cand_scores = []
+            for ans in cand_ans:
+                score = lev.ratio(ans.lower(),pred.lower())
+                cand_scores.append(score)
+            max_score = max(cand_scores)
+            scores.append(max_score)
+        # print(scores)
+        # print(len(scores))
+        NLS = sum(scores) / len(scores)
+        print(NLS)
+        return NLS
