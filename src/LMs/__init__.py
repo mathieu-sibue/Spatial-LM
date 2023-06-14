@@ -104,6 +104,10 @@ def setup(opt):
             config = AutoConfig.from_pretrained(opt.checkpoint_path)
             config.num_labels=opt.num_labels    # set label num from mydataset
             model = layoutlmv3_disent.DesentForBinaryQA.from_pretrained(opt.checkpoint_path,config=config)
+        elif opt.task_type == 'docvqa':
+            config = AutoConfig.from_pretrained(opt.checkpoint_path)
+            config.num_labels=opt.num_labels    # set label num from mydataset
+            model = layoutlmv3_disent.LayoutLMv3ForQuestionAnswering.from_pretrained(opt.checkpoint_path,config=config)
         print('attention mode:',config.spatial_attention_update)
     elif opt.network_type == 'spatial_lm':
         if opt.task_type in ['mlm','blm']:

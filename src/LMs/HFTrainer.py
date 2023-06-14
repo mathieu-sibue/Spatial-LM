@@ -94,7 +94,6 @@ class MyTrainer:
             # prediction_loss_only = True,
             # logging_dir='./logs',  
             # log_level = 'info', # ‘debug’, ‘info’, ‘warning’, ‘error’ and ‘critical’, 
-
         )
 
         trainer = Trainer(
@@ -130,6 +129,8 @@ class MyTrainer:
             # push_to_hub_model_id = f"layoutlmv3-finetuned-cord"        
             evaluation_strategy = "epoch",
             save_strategy=opt.save_strategy,  # no, epoch, steps
+            logging_strategy = 'steps', # epoch, step, no
+            logging_steps = 512,
             overwrite_output_dir=True,  # use only one dir
             prediction_loss_only = True,
             # logging_dir='./logs',  

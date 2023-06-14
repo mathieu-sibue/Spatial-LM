@@ -119,4 +119,11 @@ class MyInferencer:
         # print(len(scores))
         NLS = sum(scores) / len(scores)
         print(NLS)
+        self.write_res('temp.txt',NLS)
         return NLS
+
+
+    def write_res(self,path,content):
+        with open(path,'a') as fw:
+            fw.write(str(content))
+
