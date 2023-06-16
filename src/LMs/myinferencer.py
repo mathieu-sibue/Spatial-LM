@@ -4,6 +4,43 @@ import os
 from torch.utils.data import DataLoader
 import json
 import Levenshtein as lev
+import re
+import string
+import sys
+from collections import Counter
+
+
+def normalize_answer(s):
+    """Lower text and remove punctuation, articles and extra whitespace."""
+
+    def remove_articles(text):
+        return re.sub(r"\b(a|an|the)\b", " ", text)
+
+    def white_space_fix(text):
+        return " ".join(text.split())
+
+    def remove_punc(text):
+        exclude = set(string.punctuation)
+        return "".join(ch for ch in text if ch not in exclude)
+
+    def lower(text):
+        return text.lower()
+
+    return white_space_fix(remove_articles(remove_punc(lower(s))))
+
+
+def f1_score(ground_truth, prediction):
+    prediction_tokens = normalize_answer(prediction).split()
+    ground_truth_tokens = normalize_answer(ground_truth).split()
+    common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
+    num_same = sum(common.values())
+    if num_same == 0:
+        return 0
+    precision = 1.0 * num_same / len(prediction_tokens)
+    recall = 1.0 * num_same / len(ground_truth_tokens)
+    f1 = (2 * precision * recall) / (precision + recall)
+    return f1
+
 
 class MyInferencer:
     def __init__(self,opt):
@@ -76,7 +113,7 @@ class MyInferencer:
         return res
 
 
-    def inference_and_evaluate(self, model, mydata):
+    def inference_and_evaluate(self, model, mydata, use_f1_score=True):
         # 1 load dataset
         # test_dataset = mydata.test_dataset
         loader_test = DataLoader(mydata.trainable_ds['test'], batch_size=self.opt.batch_size*3)
@@ -111,19 +148,21 @@ class MyInferencer:
             print(pred, ' -v.s.- ',str(cand_ans))
             cand_scores = []
             for ans in cand_ans:
-                score = lev.ratio(ans.lower(),pred.lower())
+                if not use_f1_score:
+                    score = lev.ratio(ans.lower(),pred.lower())
+                else:
+                    score = f1_score(ans, pred)
                 cand_scores.append(score)
             max_score = max(cand_scores)
             scores.append(max_score)
         # print(scores)
         # print(len(scores))
-        NLS = sum(scores) / len(scores)
-        print(NLS)
-        self.write_res('temp.txt',NLS)
-        return NLS
+        avg_score = sum(scores) / len(scores)
+        print(avg_score)
+        self.write_res('temp.txt',avg_score)
+        return avg_score
 
 
     def write_res(self,path,content):
         with open(path,'a') as fw:
             fw.write(str(content))
-
