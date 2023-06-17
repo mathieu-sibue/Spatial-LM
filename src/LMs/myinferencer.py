@@ -142,6 +142,9 @@ class MyInferencer:
                     answer = mydata.tokenizer.decode(batch['input_ids'][idx][predicted_start_idx:predicted_end_idx+1]) 
                     res.append(answer)
 
+        # res and mydata.raw_test['ans_strs'] could be pickled here 
+        # to then compute both F1 and ANLS right away.
+
         # test
         scores = []
         for cand_ans,pred in zip(mydata.raw_test['ans_strs'], res):
@@ -155,8 +158,7 @@ class MyInferencer:
                 cand_scores.append(score)
             max_score = max(cand_scores)
             scores.append(max_score)
-        # print(scores)
-        # print(len(scores))
+
         avg_score = sum(scores) / len(scores)
         print(avg_score)
         self.write_res('temp.txt',avg_score)
